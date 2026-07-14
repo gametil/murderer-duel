@@ -158,8 +158,9 @@ local function getNearestPlayer()
     return closest, closestDist
 end
 
--- ESP for nearest player ONLY
+-- ESP for nearest player ONLY + center HUD
 local esps = {}
+local hud = {}
 local function drawESP(plr, color)
     -- Clean old
     for _, v in pairs(esps) do
@@ -167,7 +168,10 @@ local function drawESP(plr, color)
         if v.Name then v.Name.Visible = false end
         if v.Line then v.Line.Visible = false end
     end
-    esps = {}
+    for _, v in pairs(hud) do
+        if v then v.Visible = false end
+    end
+    esps = {}; hud = {}
     if not Settings.ESP or not plr then return end
     
     local char = plr.Character
@@ -181,6 +185,7 @@ local function drawESP(plr, color)
     
     local bh = math.abs(rp.Y - hp.Y) * 2
     local bw = bh * 0.6
+    local dist = math.floor((Camera.CFrame.Position - root.Position).Magnitude)
     
     local box = Drawing.new("Square")
     box.Size = Vector2.new(bw, bh)
@@ -188,7 +193,7 @@ local function drawESP(plr, color)
     box.Color = color; box.Thickness = 2; box.Filled = false; box.Visible = true
     
     local nm = Drawing.new("Text")
-    nm.Text = plr.Name .. " [" .. math.floor((Camera.CFrame.Position - char.HumanoidRootPart.Position).Magnitude) .. "m]"
+    nm.Text = plr.Name .. " [" .. dist .. "m]"
     nm.Size = 16; nm.Position = Vector2.new(rp.X, rp.Y - bh / 2 - 20)
     nm.Color = color; nm.Center = true; nm.Outline = true; nm.Visible = true
     
@@ -198,6 +203,22 @@ local function drawESP(plr, color)
     ln.Color = color; ln.Thickness = 1; ln.Transparency = 0.4; ln.Visible = true
     
     esps[1] = {Box = box, Name = nm, Line = ln}
+    
+    -- Center HUD: target name + dist at crosshair
+    local cx, cy = Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2
+    local bg = Drawing.new("Square")
+    bg.Size = Vector2.new(180, 24)
+    bg.Position = Vector2.new(cx - 90, cy + 30)
+    bg.Color = Color3.new(0, 0, 0)
+    bg.Filled = true; bg.Transparency = 0.6; bg.Visible = true
+    
+    local hudNm = Drawing.new("Text")
+    hudNm.Text = "▶ " .. plr.Name .. " [" .. dist .. "m]"
+    hudNm.Size = 18
+    hudNm.Position = Vector2.new(cx, cy + 42)
+    hudNm.Color = color; hudNm.Center = true; hudNm.Outline = true; hudNm.Visible = true
+    
+    hud = {bg, hudNm}
 end
 
 -- Aim at nearest player
