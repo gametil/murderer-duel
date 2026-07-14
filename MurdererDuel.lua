@@ -17,6 +17,8 @@ if type(Drawing) == "table" and type(Drawing.new) == "function" then
 		nm = Drawing.new("Text")
 		fv.Visible = true; fv.Color = Color3.new(1,1,1)
 		fv.Transparency = 0.3; fv.Thickness = 1; fv.NumSides = 60; fv.Radius = settings.fov
+		if tx then tx.Size = 13; tx.Center = true; tx.Outline = true; tx.Color = Color3.new(1,1,1) end
+		if dt then dt.Radius = 4; dt.Filled = true; dt.Color = Color3.new(1,0,0); dt.NumSides = 12; dt.Transparency = 0.6 end
 		if nm then nm.Size = 14; nm.Center = true; nm.Outline = true; nm.Color = Color3.new(1,1,0) end
 	end)
 end
@@ -70,15 +72,14 @@ RunS.RenderStepped:Connect(function()
 		local vs = cam.ViewportSize
 
 		if not uiReady then makeUI(vs); uiReady = true end
-		pulse = pulse + pulseDir * 1.5
-		if pulse > 360 or pulse < 0 then pulseDir = -pulseDir; pulse = math.clamp(pulse, 0, 360) end
+		pulse = math.max(0, math.min(360, pulse + pulseDir * 1.5))
 
 		if uiVisible and #uiElems > 0 then
 			local hsv = Color3.fromHSV(pulse/360, 0.75, 1)
 			for i,e in ipairs(uiElems) do
 				if e then
 					e.Visible = true
-					if i==1 then e.Color3 = hsv end
+					if i==1 then e.Color = hsv end
 					if i==2 or i==3 then e.Color = hsv end
 				end
 			end
@@ -92,7 +93,7 @@ RunS.RenderStepped:Connect(function()
 			for _,e in ipairs(uiElems) do if e then e.Visible = false end end
 		end
 
-		if fv then fv.Position = Vector2.new(vs.X/2, vs.Y/2); fv.Visible = settings.fov>0 and uiVisible end
+		if fv then fv.Radius = settings.fov; fv.Position = Vector2.new(vs.X/2, vs.Y/2); fv.Visible = settings.fov>0 and uiVisible end
 		if not settings.enabled then hideAll(); return end
 
 		local char = LP.Character; if not char then hideAll(); lockedTarget = nil; return end
@@ -119,7 +120,7 @@ RunS.RenderStepped:Connect(function()
 						local obj = c:FindFirstChild("userId")
 						if obj then uid = obj.Value end
 					end
-					if not uid or not friendIds[tostring(uid)] then
+					if not uid or not friendIds[uid] then
 						local d = (hrp.Position - r.Position).Magnitude
 						if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
 					end
