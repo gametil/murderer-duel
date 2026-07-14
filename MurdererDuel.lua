@@ -75,6 +75,7 @@ local function rebuildTargets()
 end
 
 rebuildTargets()
+warn("MDUEL")
 
 RS.RenderStepped:Connect(function()
  pcall(function()
