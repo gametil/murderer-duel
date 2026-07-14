@@ -43,14 +43,7 @@ end
 -- Find humanoid with fallback
 local function findHumanoid(m)
 	if not m then return nil end
-	local h = m:FindFirstChildOfClass("Humanoid")
-	if h then return h end
-	for _, c in ipairs(m:GetChildren()) do
-		if (c:IsA("IntValue") or c:IsA("NumberValue")) and (c.Name:lower() == "health" or c.Name:lower() == "hp") then
-			return { Health = c.Value, _s = true }
-		end
-	end
-	return nil
+	return m:FindFirstChildOfClass("Humanoid")
 end
 
 -- Get userId with fallback names/casings
@@ -166,8 +159,7 @@ RunS.RenderStepped:Connect(function()
 
 		local keep = false
 		if lockedTarget and lockedTarget.Parent then
-			local h = findHumanoid(lockedTarget.Parent)
-			if h and h.Health > 0 and (hrp.Position - lockedTarget.Position).Magnitude <= settings.range then
+			if (hrp.Position - lockedTarget.Position).Magnitude <= settings.range then
 				keep = true; lockedDist = (hrp.Position - lockedTarget.Position).Magnitude
 			end
 		end
@@ -181,7 +173,7 @@ RunS.RenderStepped:Connect(function()
 				else
 					local r = findRootPart(c)
 					local h = findHumanoid(c)
-					if r and h and (h._s or h.Health > 0) then
+					if r then
 						if not cUid or not friendIds[cUid] then
 							local d = (hrp.Position - r.Position).Magnitude
 							if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
