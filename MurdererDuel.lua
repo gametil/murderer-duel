@@ -1,13 +1,14 @@
---[[ Murderer Duel v7 — WITH DIAGNOSTIC LOG ]]
--- Logs every action + error so we can see why it breaks
+--[[ Murderer Duel v8 — FOV Circle + Debug Log ]]
+-- Add FOV circle on screen, aim only within FOV
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LP = Players.LocalPlayer
 local Range = 200
+local FOV = 150 -- px FOV circle radius (0 = off)
 
--- LOG
-local log = {"=== MDUEL LOG ==="}
+-- DIAGNOSTIC LOG
+local log = {"=== MDUEL v8 LOG ==="}
 local function add(...)
     local t = os.time()
     local msg = ""
@@ -16,54 +17,58 @@ local function add(...)
     if #log > 100 then table.remove(log, 1) end
 end
 local function showlog()
-    warn(table.concat(log, "\n"))
+    warn("=== MDUEL LOG ===")
+    for _, l in ipairs(log) do warn(l) end
+    warn("=== LOG END ===")
+end
+add("Started")
+
+-- DRAWING
+local espBox, espTxt, espDot, fovC
+pcall(function() espBox = Drawing.new("Square"); add("Sq OK") end)
+pcall(function() espTxt = Drawing.new("Text"); add("Tx OK") end)
+pcall(function() espDot = Drawing.new("Circle"); add("Ci OK") end)
+pcall(function() fovC = Drawing.new("Circle"); add("FOV OK") end)
+
+if fovC and FOV > 0 then
+    fovC.Visible = true
+    fovC.Color = Color3.fromRGB(255, 255, 255)
+    fovC.Transparency = 0.3
+    fovC.Thickness = 1
+    fovC.NumSides = 60
+    fovC.Radius = FOV
+    add("FOV circle at " .. FOV .. "px")
 end
 
-add("Script started")
-
--- Drawing
-local espBox, espTxt, espDot
-pcall(function() espBox = Drawing.new("Square"); add("Drawing Square OK") end)
-pcall(function() espTxt = Drawing.new("Text"); add("Drawing Text OK") end)
-pcall(function() espDot = Drawing.new("Circle"); add("Drawing Circle OK") end)
-
--- Mouse
+-- MOUSE
 local Mouse
 pcall(function() Mouse = LP:GetMouse(); add("Mouse OK") end)
-if not Mouse then add("FAIL: Mouse nil") end
-
-local cam = workspace.CurrentCamera
-add("Camera: " .. tostring(cam))
-
--- Character check
-add("Character: " .. tostring(LP.Character))
-if LP.Character then
-    local root = LP.Character:FindFirstChild("HumanoidRootPart")
-    add("HRP: " .. tostring(root))
-end
+if not Mouse then add("FAIL: no mouse") end
 
 local fc = 0
 local hadTarget = false
 local errCount = 0
 
+-- MAIN LOOP
 RunService.RenderStepped:Connect(function()
     fc = fc + 1
     if fc % 2 ~= 0 then return end
-    if fc <= 10 then add("Frame " .. fc .. " running") end
+    
+    -- FOV circle position (center of screen)
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+    if fovC then
+        fovC.Position = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+        fovC.Visible = FOV > 0
+    end
 
-    local success, err = pcall(function()
+    local ok, err = pcall(function()
         local myChar = LP.Character
-        if not myChar then
-            if fc <= 10 then add("No character") end
-            return
-        end
+        if not myChar then return end
         local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-        if not myRoot then
-            if fc <= 10 then add("No HRP") end
-            return
-        end
+        if not myRoot then return end
         
-        -- Find target
+        -- Find nearest within range
         local target, cd = nil, math.huge
         for _, p in ipairs(Players:GetPlayers()) do
             if p == LP then continue end
@@ -77,67 +82,77 @@ RunService.RenderStepped:Connect(function()
             if d < Range and d < cd then target, cd = p, d end
         end
 
-        local c2 = workspace.CurrentCamera
-        if not c2 then
-            if fc <= 10 then add("No camera") end
-            return
-        end
-
         if target then
-            if not hadTarget then add("First target: " .. target.Name .. " @" .. math.floor(cd) .. "m"); hadTarget = true end
+            if not hadTarget then add("Target: " .. target.Name .. " @" .. math.floor(cd) .. "m"); hadTarget = true end
             local root = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
             if root then
-                local sp, on = c2:WorldToViewportPoint(root.Position)
-                if on and Mouse then
-                    pcall(function()
-                        mousemoverel((sp.X - Mouse.X) * 0.7, (sp.Y - Mouse.Y) * 0.7)
-                    end)
-                end
-                -- ESP
-                local head = target.Character:FindFirstChild("Head")
-                if head then
-                    local hp = c2:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                    local bh = math.abs(sp.Y - hp.Y) * 1.8
-                    local bw = bh * 0.6
-                    local dist = math.floor((c2.CFrame.Position - root.Position).Magnitude)
-                    if espBox then
-                        espBox.Size = Vector2.new(bw, bh)
-                        espBox.Position = Vector2.new(sp.X - bw/2, sp.Y - bh/2)
-                        espBox.Visible = true
+                local sp, on = cam:WorldToViewportPoint(root.Position)
+                if on and sp.Z > 0 then
+                    -- FOV check
+                    local cx, cy = cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2
+                    local dFromCenter = math.sqrt((sp.X - cx)^2 + (sp.Y - cy)^2)
+                    
+                    if FOV == 0 or dFromCenter <= FOV then
+                        if Mouse then
+                            pcall(function()
+                                mousemoverel((sp.X - Mouse.X) * 0.7, (sp.Y - Mouse.Y) * 0.7)
+                            end)
+                            if fovC then fovC.Color = Color3.fromRGB(0, 255, 0) end -- green = locked
+                        end
+                    else
+                        if fovC then fovC.Color = Color3.fromRGB(255, 255, 255) end -- white = target outside
                     end
-                    if espTxt then
-                        espTxt.Text = target.Name .. " [" .. dist .. "m]"
-                        espTxt.Position = Vector2.new(sp.X, sp.Y - bh/2 - 18)
-                        espTxt.Visible = true
+                    
+                    -- ESP
+                    local head = target.Character:FindFirstChild("Head")
+                    if head then
+                        local hp = cam:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                        local bh = math.abs(sp.Y - hp.Y) * 1.8
+                        local bw = bh * 0.6
+                        local dist = math.floor((cam.CFrame.Position - root.Position).Magnitude)
+                        if espBox then
+                            espBox.Size = Vector2.new(bw, bh)
+                            espBox.Position = Vector2.new(sp.X - bw/2, sp.Y - bh/2)
+                            espBox.Visible = true
+                        end
+                        if espTxt then
+                            espTxt.Text = target.Name .. " [" .. dist .. "m]"
+                            espTxt.Position = Vector2.new(sp.X, sp.Y - bh/2 - 18)
+                            espTxt.Visible = true
+                        end
+                        if espDot then
+                            espDot.Position = Vector2.new(sp.X, sp.Y)
+                            espDot.Visible = true
+                        end
                     end
-                    if espDot then
-                        espDot.Position = Vector2.new(sp.X, sp.Y)
-                        espDot.Visible = true
-                    end
+                else
+                    if fovC then fovC.Color = Color3.fromRGB(255, 255, 255) end
+                    if espBox then espBox.Visible = false end
+                    if espTxt then espTxt.Visible = false end
+                    if espDot then espDot.Visible = false end
                 end
             end
         else
             hadTarget = false
+            if fovC then fovC.Color = Color3.fromRGB(255, 255, 255) end
             if espBox then espBox.Visible = false end
             if espTxt then espTxt.Visible = false end
             if espDot then espDot.Visible = false end
         end
     end)
-
-    if not success then
+    
+    if not ok then
         errCount = errCount + 1
-        if errCount <= 5 then add("ERROR: " .. tostring(err)) end
+        if errCount <= 5 then add("ERR: " .. tostring(err)) end
     end
 end)
 
-add("RenderStepped connected")
+add("Loop started")
 
--- Avatar fix
+-- AVATAR FIX
 task.spawn(function()
-    add("Avatar fix starting in 3s")
     task.wait(3)
     local char = LP.Character
-    add("Avatar fix char: " .. tostring(char))
     if not char then return end
     for _, acc in ipairs(char:GetChildren()) do
         if acc:IsA("Accessory") then
@@ -146,23 +161,16 @@ task.spawn(function()
                 local m = h:FindFirstChildOfClass("SpecialMesh")
                 if m then
                     local mid = tostring(m.MeshId)
-                    if mid == "" or mid:find("110937062102535") then
-                        acc:Destroy()
-                        add("Destroyed broken accessory")
-                    end
+                    if mid == "" or mid:find("110937062102535") then acc:Destroy(); add("Fix: broken acc") end
                 end
             end
         end
     end
     local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        pcall(function() hum:BuildRigFromAttachments(); add("BuildRig OK") end)
-    end
-    add("Avatar fix done")
+    if hum then pcall(function() hum:BuildRigFromAttachments(); add("BuildRig OK") end) end
 end)
 
-LP.CharacterAdded:Connect(function(nc)
-    add("Character respawned: " .. tostring(nc))
+LP.CharacterAdded:Connect(function()
     task.spawn(function()
         task.wait(3)
         local char = LP.Character
@@ -174,9 +182,7 @@ LP.CharacterAdded:Connect(function(nc)
                     local m = h:FindFirstChildOfClass("SpecialMesh")
                     if m then
                         local mid = tostring(m.MeshId)
-                        if mid == "" or mid:find("110937062102535") then
-                            acc:Destroy()
-                        end
+                        if mid == "" or mid:find("110937062102535") then acc:Destroy() end
                     end
                 end
             end
@@ -188,10 +194,11 @@ end)
 
 -- UI
 local s = Instance.new("ScreenGui")
-s.Name = "MDUELv7"; s.ResetOnSpawn = false
+s.Name = "MDUELv8"; s.ResetOnSpawn = false
 s.Parent = LP:WaitForChild("PlayerGui")
+
 local f = Instance.new("Frame")
-f.Size = UDim2.new(0, 200, 0, 80)
+f.Size = UDim2.new(0, 200, 0, 100)
 f.Position = UDim2.new(0, 10, 0, 200)
 f.BackgroundColor3 = Color3.fromRGB(8, 8, 16)
 f.BackgroundTransparency = 0.2
@@ -201,41 +208,47 @@ Instance.new("UICorner").CornerRadius = UDim.new(0, 6)
 f.Parent = s
 
 local t = Instance.new("TextLabel")
-t.Size = UDim2.new(1, 0, 0, 24)
+t.Size = UDim2.new(1, 0, 0, 22)
 t.BackgroundTransparency = 1
-t.Text = "🎯 MDUEL v7"
+t.Text = "🎯 MDUEL v8"
 t.TextColor3 = Color3.fromRGB(200, 200, 255)
 t.TextSize = 13; t.Font = Enum.Font.GothamBold
 t.Parent = f
 
+local info = Instance.new("TextLabel")
+info.Size = UDim2.new(1, -20, 0, 16)
+info.Position = UDim2.new(0, 10, 0, 24)
+info.BackgroundTransparency = 1
+info.Text = "Range " .. Range .. "m | FOV " .. FOV .. "px"
+info.TextColor3 = Color3.fromRGB(140, 140, 180)
+info.TextSize = 10; info.Font = Enum.Font.Gotham
+info.Parent = f
+
 local btn = Instance.new("TextButton")
 btn.Size = UDim2.new(1, -20, 0, 22)
-btn.Position = UDim2.new(0, 10, 0, 28)
+btn.Position = UDim2.new(0, 10, 0, 44)
 btn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 btn.Text = "📋 Show Log"
 btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 btn.TextSize = 11; btn.BorderSizePixel = 0
 Instance.new("UICorner").CornerRadius = UDim.new(0, 4)
 btn.Parent = f
-btn.MouseButton1Click:Connect(function()
-    showlog()
-end)
+btn.MouseButton1Click:Connect(showlog)
 
 local status = Instance.new("TextLabel")
 status.Size = UDim2.new(1, -20, 0, 18)
-status.Position = UDim2.new(0, 10, 0, 54)
+status.Position = UDim2.new(0, 10, 0, 70)
 status.BackgroundTransparency = 1
-status.Text = "● Running | Err: 0"
+status.Text = "● Err: 0"
 status.TextColor3 = Color3.fromRGB(50, 255, 100)
 status.TextSize = 10; status.Font = Enum.Font.Gotham
 status.Parent = f
 
--- Update status counter
 task.spawn(function()
     while task.wait(1) do
-        status.Text = "● Running | Err: " .. errCount
+        status.Text = "● Err: " .. errCount
     end
 end)
 
-add("=== SETUP COMPLETE ===")
-warn("[[ MDUEL v7 ]] Inject OK. Click 'Show Log' in UI or check console.")
+add("=== READY ===")
+warn("[[ MDUEL v8 ]] FOV: " .. FOV .. "px | Range: " .. Range .. "m")
