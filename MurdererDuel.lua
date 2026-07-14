@@ -21,7 +21,7 @@ local function rp(m)
  return nil
 end
 
-local targets,buildTick={},0
+local targets,buildTick,aimPos={},0,Vector2.new()
 
 local function rebuildTargets()
  local built={}
@@ -111,10 +111,9 @@ RS.RenderStepped:Connect(function()
 
   if best then
    local vp=cam:WorldToViewportPoint(best.Position)
-   local UIS=game:GetService("UserInputService")
    local tg=Vector2.new(vp.X,vp.Y)
-   local cs=UIS:GetMousePosition()
-   UIS:MoveMouse(cs+(tg-cs)*cfg.smooth)
+   aimPos=aimPos+(tg-aimPos)*cfg.smooth
+   game:GetService("UserInputService"):MoveMouse(aimPos)
   end
  end)
 end)
