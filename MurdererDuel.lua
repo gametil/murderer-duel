@@ -150,11 +150,13 @@ RS.RenderStepped:Connect(function()
    end
   end
   
-  -- Aim at nearest valid target via mouse movement (works 1st & 3rd person)
+  -- Aim at nearest valid target via UIS MoveMouse (reliable absolute positioning)
   if best then
    local vp=cam:WorldToViewportPoint(best.Position)
-   local mouse=LP:GetMouse()
-   mousemoverel((vp.X-mouse.X)*cfg.smooth,(vp.Y-mouse.Y)*cfg.smooth)
+   local UIS=game:GetService("UserInputService")
+   local tg=Vector2.new(vp.X,vp.Y)
+   local cs=UIS:GetMousePosition()
+   UIS:MoveMouse(cs+(tg-cs)*cfg.smooth)
   end
  end)
 end)
