@@ -129,8 +129,9 @@ RunS.RenderStepped:Connect(function()
 		if not keep then
 			lockedTarget = nil; lockedName = ""
 			local best, bdist = nil, HUGE
-				local cName = char and char.Name or ""
-				-- Scan workspace.Characters (custom folder)
+			local cName = char and char.Name or ""
+			-- Method 1: workspace.Characters (custom folder)
+			if chars then
 				for _, c in chars:GetChildren() do
 					if c ~= char and c.Name ~= cName then
 						local r = findRootPart(c)
@@ -140,18 +141,33 @@ RunS.RenderStepped:Connect(function()
 						end
 					end
 				end
-				-- Also scan Players service (standard Roblox)
-				for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
-					if p ~= LP and p.Character then
-						local r = findRootPart(p.Character)
-						if r then
-							local d = (hrp.Position - r.Position).Magnitude
-							if d < settings.range and d < bdist then best, bdist = r, d; lockedName = p.Name end
+			end
+			-- Method 2: Players:GetPlayers() via v.Character
+			for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+				if p ~= LP and p.Character then
+					local r = findRootPart(p.Character)
+					if r then
+						local d = (hrp.Position - r.Position).Magnitude
+						if d < settings.range and d < bdist then best, bdist = r, d; lockedName = p.Name end
+					end
+				end
+			end
+			-- Method 3: Any HumanoidRootPart in workspace (lobby/non-standard)
+			local sm = hrp.Position
+			for _, p in ipairs(workspace:GetDescendants()) do
+				if p:IsA("BasePart") then
+					local nn = p.Name
+					if nn == "HumanoidRootPart" or nn == "UpperTorso" or nn == "LowerTorso" or nn == "Torso" or nn == "Root" then
+						local m = p.Parent
+						if m and m ~= char and m.Name ~= cName then
+							local d = (sm - p.Position).Magnitude
+							if d < settings.range and d < bdist then best, bdist = p, d; lockedName = m.Name end
 						end
 					end
 				end
-				if best then lockedTarget = best; lockedDist = bdist end
 			end
+			if best then lockedTarget = best; lockedDist = bdist end
+		end
 
 		if lockedTarget then
 			local sp, on = cam:WorldToViewportPoint(lockedTarget.Position)
