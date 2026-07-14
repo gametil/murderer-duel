@@ -1,14 +1,9 @@
--- MDUEL Ultimate — silent aim + mousemoverel aimbot + ESP
--- Combined: gametil/murderer-duel
--- Sources: mitka1337 silent aim, ic3w0lf22/Unnamed-ESP drawing
-
+-- MDUEL Ultimate v2 — mousemoverel aimbot + silent aim + ESP (Ketamine-safe)
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
 local PS=game:GetService("Players")
-local UIS=game:GetService("UserInputService")
 
--- Config
 local cfg={
  range=350,fov=200,smooth=0.15,
  silent=true,esp=true,teamCheck=false,
@@ -16,11 +11,7 @@ local cfg={
  esp_color_team=Color3.new(0,1,0)
 }
 
--- Root part names in priority order
-local RP_NAMES={UpperTorso=true,Head=true,HumanoidRootPart=true,LowerTorso=true,Torso=true,Root=true,Hip=true}
 local RP_LIST={"UpperTorso","Head","HumanoidRootPart","LowerTorso","Torso","Root","Hip"}
-
--- Root part finder
 local function rp(m)
  if not m then return nil end
  for _,n in ipairs(RP_LIST)do
@@ -31,62 +22,44 @@ local function rp(m)
  return nil
 end
 
--- Target cache
 local targets,buildTick,aimPos={},0,Vector2.new()
-
 LP.CharacterAdded:Connect(function()buildTick=999 end)
 
-local function rebuildTargets()
+local function rebuild()
  local built={}
- local selfChar=LP.Character
- local selfName=LP.Name
+ local sc=LP.Character;local sn=LP.Name
  for _,c in ipairs(WS:GetChildren())do
-  if c:IsA("Model")and c~=selfChar and c.Name~=selfName then
-   local r=rp(c)
-   if r then built[c]=r end
-  end
+  if c:IsA("Model")and c~=sc and c.Name~=sn then local r=rp(c)if r then built[c]=r end end
  end
- local chars=WS:FindFirstChild("Characters")
- if chars then
-  for _,c in ipairs(chars:GetChildren())do
-   if c:IsA("Model")and c~=selfChar and c.Name~=selfName then
-    local r=rp(c)
-    if r then built[c]=r end
-   end
+ local ch=WS:FindFirstChild("Characters")
+ if ch then
+  for _,c in ipairs(ch:GetChildren())do
+   if c:IsA("Model")and c~=sc and c.Name~=sn then local r=rp(c)if r then built[c]=r end end
   end
  end
  for _,p in ipairs(PS:GetPlayers())do
   if p~=LP then
    local c=p.Character or WS:FindFirstChild(p.Name)or WS:FindFirstChild(p.DisplayName)
-   if c and c~=selfChar and c.Name~=selfName and not built[c]then
-    local r=rp(c)
-    if r then built[c]=r end
-   end
+   if c and c~=sc and c.Name~=sn and not built[c]then local r=rp(c)if r then built[c]=r end end
   end
  end
  for _,f in ipairs(WS:GetChildren())do
   if f:IsA("Folder")and f.Name~="Characters"then
    for _,c in ipairs(f:GetChildren())do
-    if c:IsA("Model")and c~=selfChar and c.Name~=selfName and not built[c]then
-     local r=rp(c)
-     if r then built[c]=r end
-    end
+    if c:IsA("Model")and c~=sc and c.Name~=sn and not built[c]then local r=rp(c)if r then built[c]=r end end
    end
   end
  end
  targets=built;buildTick=0
 end
+rebuild()
 
-rebuildTargets()
-
--- Get closest target for silent aim
-local function getClosestTarget()
+-- Get best target
+local function getTarget()
  local cam=WS.CurrentCamera
  if not cam then return nil end
- local char=LP.Character
- if not char then return nil end
- local hrp=rp(char)
- if not hrp then return nil end
+ local char=LP.Character;if not char then return nil end
+ local hrp=rp(char);if not hrp then return nil end
  local hp=hrp.Position
  local best,bd=nil,1/0
  for m,r in pairs(targets)do
@@ -107,51 +80,50 @@ local function getClosestTarget()
  return best
 end
 
---- SILENT AIM — hook __namecall for Raycast/FindPartOnRay
-if cfg.silent then
- local oldNamecall
- oldNamecall=hookmetamethod(game,"__namecall",function(...)
-  local method=getnamecallmethod()
-  local args={...}
-  local self=args[1]
-  
-  if(self==WS or self==WS.Terrain)and cfg.silent then
-   local target=getClosestTarget()
-   if target then
-    if method=="Raycast"and #args>=3 then
-     args[3]=(target.Position-args[2]).Unit*1000
-     return oldNamecall(unpack(args))
-    elseif(method=="FindPartOnRayWithIgnoreList"or method=="FindPartOnRayWithWhitelist")and #args>=3 then
-     local ray=args[2]
-     args[2]=Ray.new(ray.Origin,(target.Position-ray.Origin).Unit*1000)
-     return oldNamecall(unpack(args))
-    elseif(method=="FindPartOnRay"or method=="findPartOnRay")and #args>=2 then
-     local ray=args[2]
-     args[2]=Ray.new(ray.Origin,(target.Position-ray.Origin).Unit*1000)
-     return oldNamecall(unpack(args))
+-- Silent aim via __namecall (via getfenv for Ketamine compat)
+local env=getfenv()
+local hmm=env.hookmetamethod
+local gnm=env.getnamecallmethod
+if cfg.silent and hmm and gnm then
+ pcall(function()
+  local old
+  old=hmm(game,"__namecall",function(...)
+   local m=gnm()
+   if m=="Raycast"or m=="FindPartOnRayWithIgnoreList"or m=="FindPartOnRayWithWhitelist"or m=="FindPartOnRay"or m=="findPartOnRay"then
+    local args={...}
+    local self=args[1]
+    if(self==WS or self==WS.Terrain)and args[2]then
+     local t=getTarget()
+     if t then
+      if m=="Raycast"and #args>=3 then
+       args[3]=(t.Position-args[2]).Unit*1000
+       return old(unpack(args))
+      else
+       local ray=args[2]
+       if ray and ray.Origin then
+        args[2]=Ray.new(ray.Origin,(t.Position-ray.Origin).Unit*1000)
+        return old(unpack(args))
+       end
+      end
+     end
     end
    end
-  end
-  return oldNamecall(...)
+   return old(...)
+  end)
  end)
 end
 
---- MOUSEMOVEREL AIMBOT (fallback)
+-- mousemoverel aimbot
 RS.RenderStepped:Connect(function()
  pcall(function()
   local cam=WS.CurrentCamera
-  if not cam then return end
-  local char=LP.Character
-  if not char then return end
-  local hrp=rp(char)
+  if not cam then return end;local char=LP.Character
+  if not char then return end;local hrp=rp(char)
   if not hrp then return end
-  
   buildTick=buildTick+1
-  if buildTick>=60 or not next(targets)then rebuildTargets()end
-  
+  if buildTick>=60 or not next(targets)then rebuild()end
   local hp=hrp.Position
   local best,bd=nil,1/0
-  
   for m,r in pairs(targets)do
    if not m.Parent or not r.Parent then targets[m]=nil
    elseif m==char then targets[m]=nil
@@ -167,7 +139,6 @@ RS.RenderStepped:Connect(function()
     end
    end
   end
-  
   if best then
    local vp=cam:WorldToViewportPoint(best.Position)
    local tg=Vector2.new(vp.X,vp.Y)
@@ -178,87 +149,52 @@ RS.RenderStepped:Connect(function()
  end)
 end)
 
---- ESP
-if cfg.esp and Drawing then
- local espObjects={}
- 
- local function createESP(player)
-  if player==LP then return end
-  if espObjects[player]then return end
-  
-  local box=Drawing.new("Square")
-  local fill=Drawing.new("Square")
-  local nameLabel=Drawing.new("Text")
-  local healthLabel=Drawing.new("Text")
-  
-  box.Thickness=1;box.Filled=false;box.Visible=false
-  fill.Filled=true;fill.Color=Color3.new(0,0,0);fill.Transparency=0.6;fill.Visible=false
-  nameLabel.Size=14;nameLabel.Outline=true;nameLabel.Center=true;nameLabel.Visible=false
-  healthLabel.Size=12;healthLabel.Outline=true;healthLabel.Visible=false
-  
-  espObjects[player]={box=box,fill=fill,name=nameLabel,health=healthLabel}
- end
- 
- local function updateESP()
-  for player,objs in pairs(espObjects)do
-   local char=player.Character or WS:FindFirstChild(player.Name)
-   if not char or not char.Parent then
-    for _,o in pairs(objs)do o.Visible=false end
-   else
-    local head=rp(char)
-    local hrp=rp(char)
-    if head and hrp then
-     local headPos,onScreen=WS.CurrentCamera:WorldToViewportPoint(head.Position+(cfg.teamCheck and Vector3.new(0,0.5,0)or Vector3.new(0,1.5,0)))
-     if onScreen then
-      local rootPos=WS.CurrentCamera:WorldToViewportPoint(hrp.Position+(cfg.teamCheck and Vector3.new(0,-1.5,0)or Vector3.new(0,-1.5,0)))
-      local h=math.abs(headPos.Y-rootPos.Y)
-      local w=h*0.6
-      local x=headPos.X-w/2
-      local y=headPos.Y-h
-      
-      local color=cfg.esp_color_enemy
-      if cfg.teamCheck and player.Team==LP.Team then color=cfg.esp_color_team end
-      
-      objs.box.Position=Vector2.new(x,y)
-      objs.box.Size=Vector2.new(w,h)
-      objs.box.Color=color
-      objs.box.Visible=true
-      
-      objs.fill.Position=Vector2.new(x,y)
-      objs.fill.Size=Vector2.new(w,h)
-      objs.fill.Visible=true
-      
-      objs.name.Position=Vector2.new(x+w/2,y-16)
-      objs.name.Text=player.Name
-      objs.name.Color=color
-      objs.name.Visible=true
-      
-      local hum=char:FindFirstChildOfClass("Humanoid")
-      local hpText=hum and tostring(math.floor(hum.Health))or"?"
-      objs.health.Position=Vector2.new(x+w/2,y+h+2)
-      objs.health.Text=hpText
-      objs.health.Color=color
-      objs.health.Visible=true
-     else
-      for _,o in pairs(objs)do o.Visible=false end
-     end
+-- ESP via Drawing (wrapped, graceful if no Drawing)
+if cfg.esp then
+ pcall(function()
+  if not Drawing then return end
+  local espObjs={}
+  local function cr(p)
+   if p==LP or espObjs[p]then return end
+   local b=Drawing.new("Square");local f=Drawing.new("Square")
+   local n=Drawing.new("Text");local h=Drawing.new("Text")
+   b.Thickness=1;b.Filled=false;b.Visible=false
+   f.Filled=true;f.Color=Color3.new(0,0,0);f.Transparency=0.6;f.Visible=false
+   n.Size=14;n.Outline=true;n.Center=true;n.Visible=false
+   h.Size=12;h.Outline=true;h.Visible=false
+   espObjs[p]={box=b,fill=f,name=n,health=h}
+  end
+  local function up()
+   for p,o in pairs(espObjs)do
+    local c=p.Character or WS:FindFirstChild(p.Name)
+    if not c or not c.Parent then
+     for _,d in pairs(o)do d.Visible=false end
     else
-     for _,o in pairs(objs)do o.Visible=false end
+     local head=rp(c);local root=rp(c)
+     if head and root then
+      local hp,on=WS.CurrentCamera:WorldToViewportPoint(head.Position+Vector3.new(0,1.5,0))
+      if on then
+       local rp=WS.CurrentCamera:WorldToViewportPoint(root.Position+Vector3.new(0,-1.5,0))
+       local hh=math.abs(hp.Y-rp.Y);local w=hh*0.6
+       local x=hp.X-w/2;local y=hp.Y-hh
+       local cl=cfg.esp_color_enemy
+       if cfg.teamCheck and p.Team==LP.Team then cl=cfg.esp_color_team end
+       o.box.Position=Vector2.new(x,y);o.box.Size=Vector2.new(w,hh);o.box.Color=cl;o.box.Visible=true
+       o.fill.Position=Vector2.new(x,y);o.fill.Size=Vector2.new(w,hh);o.fill.Visible=true
+       o.name.Position=Vector2.new(x+w/2,y-16);o.name.Text=p.Name;o.name.Color=cl;o.name.Visible=true
+       o.health.Position=Vector2.new(x+w/2,y+hh+2);o.health.Text=p.Name:sub(1,3);o.health.Color=cl;o.health.Visible=true
+      else for _,d in pairs(o)do d.Visible=false end end
+     else for _,d in pairs(o)do d.Visible=false end end
     end
    end
   end
- end
- 
- for _,p in ipairs(PS:GetPlayers())do createESP(p)end
- PS.PlayerAdded:Connect(createESP)
- PS.PlayerRemoving:Connect(function(p)
-  if espObjects[p]then
-   for _,o in pairs(espObjects[p])do o:Remove()end
-   espObjects[p]=nil
-  end
+  for _,p in ipairs(PS:GetPlayers())do cr(p)end
+  PS.PlayerAdded:Connect(cr)
+  PS.PlayerRemoving:Connect(function(p)
+   if espObjs[p]then for _,d in pairs(espObjs[p])do d:Remove()end;espObjs[p]=nil end
+  end)
+  RS.RenderStepped:Connect(up)
  end)
- 
- RS.RenderStepped:Connect(updateESP)
 end
 
-warn("MDUEL ULTIMATE")
+warn("MDUEL ULTIMATE v2")
