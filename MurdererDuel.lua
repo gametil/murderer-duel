@@ -3,28 +3,37 @@ local RunS = game:GetService("RunService")
 local WS = game:GetService("Workspace")
 local LP = game:GetService("Players").LocalPlayer
 local UIS = game:GetService("UserInputService")
+local HUGE = math.huge or 1/0
 
 local settings = { enabled = true, range = 250, fov = 200, smooth = 0.15 }
 
--- Drawing setup
+-- Drawing cleanup tracking
+local allDrawings = {}
+local function cleanup()
+	for _, d in ipairs(allDrawings) do pcall(function() d:Remove() end) end
+	allDrawings = {}
+end
+
+-- Drawing setup with nil-guard
 local bx, tx, dt, fv, nm
 if type(Drawing) == "table" and type(Drawing.new) == "function" then
 	pcall(function()
-		bx = Drawing.new("Square")
-		tx = Drawing.new("Text")
-		dt = Drawing.new("Circle")
-		fv = Drawing.new("Circle")
-		nm = Drawing.new("Text")
-		fv.Visible = true; fv.Color = Color3.new(1,1,1)
-		fv.Transparency = 0.3; fv.Thickness = 1; fv.NumSides = 60; fv.Radius = settings.fov
+		bx = Drawing.new("Square"); table.insert(allDrawings, bx)
+		tx = Drawing.new("Text"); table.insert(allDrawings, tx)
+		dt = Drawing.new("Circle"); table.insert(allDrawings, dt)
+		fv = Drawing.new("Circle"); table.insert(allDrawings, fv)
+		nm = Drawing.new("Text"); table.insert(allDrawings, nm)
+		if bx then bx.Color = Color3.new(0,1,0); bx.Thickness = 1; bx.Filled = false end
 		if tx then tx.Size = 13; tx.Center = true; tx.Outline = true; tx.Color = Color3.new(1,1,1) end
 		if dt then dt.Radius = 4; dt.Filled = true; dt.Color = Color3.new(1,0,0); dt.NumSides = 12; dt.Transparency = 0.6 end
+		fv.Visible = true; fv.Color = Color3.new(1,1,1)
+		fv.Transparency = 0.3; fv.Thickness = 1; fv.NumSides = 60; fv.Radius = settings.fov
 		if nm then nm.Size = 14; nm.Center = true; nm.Outline = true; nm.Color = Color3.new(1,1,0) end
 	end)
 end
 
 local chars = WS:FindFirstChild("Characters")
-if not chars then warn("MDUEL no Characters"); return end
+if not chars then warn("MDUEL no Characters"); cleanup(); return end
 
 -- Friend check
 local friendIds = {}
@@ -48,22 +57,38 @@ local function hideAll()
 end
 
 -- UI elements
-local uiElems, uiVisible, uiReady, uiToggleDeb = {}, true, false, true
+local uiElems, uiVisible, uiReady = {}, true, false
+local zDebounce, ctrlDebounce, fovDeb, smDeb = true, true, true, true
 local UI_W, UI_H, pulse, pulseDir = 260, 180, 0, 1
 
 local function makeUI(vs)
-	local x, y = (vs.X-UI_W)/2, 40
-	local bg = Drawing.new("Square"); bg.Filled = true; bg.Color = Color3.fromRGB(10,10,16); bg.Transparency = 0.88; bg.Size = Vector2.new(UI_W,UI_H); bg.Position = Vector2.new(x,y); bg.Thickness = 1.5; bg.ZIndex = 100
-	local ln = Drawing.new("Line"); ln.From = Vector2.new(x,y+32); ln.To = Vector2.new(x+UI_W,y+32); ln.Color = Color3.fromRGB(0,200,255); ln.Thickness = 1; ln.Transparency = 0.5; ln.ZIndex = 101
-	local ti = Drawing.new("Text"); ti.Text = "MDUEL V3"; ti.Size = 18; ti.Color = Color3.fromRGB(0,200,255); ti.Position = Vector2.new(x+12,y+6); ti.Font = 3; ti.Outline = true; ti.ZIndex = 102
-	local st = Drawing.new("Text"); st.Text = "ACTIVE"; st.Size = 11; st.Color = Color3.fromRGB(0,255,120); st.Position = Vector2.new(x+UI_W-65,y+11); st.Font = 2; st.Outline = true; st.ZIndex = 102
-	local a1 = Drawing.new("Text"); a1.Text = "Z: Aimbot"; a1.Size = 14; a1.Color = Color3.fromRGB(210,210,240); a1.Position = Vector2.new(x+14,y+42); a1.Font = 2; a1.ZIndex = 102
-	local a2 = Drawing.new("Square"); a2.Size = Vector2.new(14,14); a2.Position = Vector2.new(x+UI_W-28,y+43); a2.Color = Color3.fromRGB(0,255,120); a2.Filled = true; a2.Thickness = 1; a2.ZIndex = 101
-	local f1 = Drawing.new("Text"); f1.Text = "[  ] FOV: "..settings.fov; f1.Size = 13; f1.Color = Color3.fromRGB(190,190,220); f1.Position = Vector2.new(x+14,y+72); f1.Font = 2; f1.ZIndex = 102
-	local s1 = Drawing.new("Text"); s1.Text = "[  ] SMOOTH: "..string.format("%.2f",settings.smooth); s1.Size = 13; s1.Color = Color3.fromRGB(190,190,220); s1.Position = Vector2.new(x+14,y+97); s1.Font = 2; s1.ZIndex = 102
-	local r1 = Drawing.new("Text"); r1.Text = "[  ] RANGE: "..settings.range; r1.Size = 13; r1.Color = Color3.fromRGB(190,190,220); r1.Position = Vector2.new(x+14,y+122); r1.Font = 2; r1.ZIndex = 102
-	local h1 = Drawing.new("Text"); h1.Text = "Ctrl: hide   +/-: FOV   [ ]: smooth"; h1.Size = 10; h1.Color = Color3.fromRGB(90,90,110); h1.Position = Vector2.new(x+14,y+155); h1.Font = 2; h1.ZIndex = 102
-	uiElems = {bg,ln,ti,st,a1,a2,f1,s1,r1,h1}
+	local ok = pcall(function()
+		if vs.X < 100 or vs.Y < 100 then return false end
+		local x, y = (vs.X-UI_W)/2, 40
+		local bg = Drawing.new("Square"); table.insert(allDrawings, bg)
+		bg.Filled = true; bg.Color = Color3.fromRGB(10,10,16); bg.Transparency = 0.88; bg.Size = Vector2.new(UI_W,UI_H); bg.Position = Vector2.new(x,y); bg.Thickness = 1.5; bg.ZIndex = 100
+		local ln = Drawing.new("Line"); table.insert(allDrawings, ln)
+		ln.From = Vector2.new(x,y+32); ln.To = Vector2.new(x+UI_W,y+32); ln.Color = Color3.fromRGB(0,200,255); ln.Thickness = 1; ln.Transparency = 0.5; ln.ZIndex = 101
+		local ti = Drawing.new("Text"); table.insert(allDrawings, ti)
+		ti.Text = "MDUEL V3"; ti.Size = 18; ti.Color = Color3.fromRGB(0,200,255); ti.Position = Vector2.new(x+12,y+6); ti.Font = 3; ti.Outline = true; ti.ZIndex = 102
+		local st = Drawing.new("Text"); table.insert(allDrawings, st)
+		st.Text = "ACTIVE"; st.Size = 11; st.Color = Color3.fromRGB(0,255,120); st.Position = Vector2.new(x+UI_W-65,y+11); st.Font = 2; st.Outline = true; st.ZIndex = 102
+		local a1 = Drawing.new("Text"); table.insert(allDrawings, a1)
+		a1.Text = "Z: Aimbot"; a1.Size = 14; a1.Color = Color3.fromRGB(210,210,240); a1.Position = Vector2.new(x+14,y+42); a1.Font = 2; a1.ZIndex = 102
+		local a2 = Drawing.new("Square"); table.insert(allDrawings, a2)
+		a2.Size = Vector2.new(14,14); a2.Position = Vector2.new(x+UI_W-28,y+43); a2.Color = Color3.fromRGB(0,255,120); a2.Filled = true; a2.Thickness = 1; a2.ZIndex = 101
+		local f1 = Drawing.new("Text"); table.insert(allDrawings, f1)
+		f1.Text = "[  ] FOV: "..settings.fov; f1.Size = 13; f1.Color = Color3.fromRGB(190,190,220); f1.Position = Vector2.new(x+14,y+72); f1.Font = 2; f1.ZIndex = 102
+		local s1 = Drawing.new("Text"); table.insert(allDrawings, s1)
+		s1.Text = "[  ] SMOOTH: "..string.format("%.2f",settings.smooth); s1.Size = 13; s1.Color = Color3.fromRGB(190,190,220); s1.Position = Vector2.new(x+14,y+97); s1.Font = 2; s1.ZIndex = 102
+		local r1 = Drawing.new("Text"); table.insert(allDrawings, r1)
+		r1.Text = "[  ] RANGE: "..settings.range; r1.Size = 13; r1.Color = Color3.fromRGB(190,190,220); r1.Position = Vector2.new(x+14,y+122); r1.Font = 2; r1.ZIndex = 102
+		local h1 = Drawing.new("Text"); table.insert(allDrawings, h1)
+		h1.Text = "Ctrl: hide   +/-: FOV   [ ]: smooth"; h1.Size = 10; h1.Color = Color3.fromRGB(90,90,110); h1.Position = Vector2.new(x+14,y+155); h1.Font = 2; h1.ZIndex = 102
+		uiElems = {bg,ln,ti,st,a1,a2,f1,s1,r1,h1}
+		return true
+	end)
+	if ok then uiReady = true end
 end
 
 RunS.RenderStepped:Connect(function()
@@ -71,11 +96,13 @@ RunS.RenderStepped:Connect(function()
 		local cam = WS.CurrentCamera; if not cam then return end
 		local vs = cam.ViewportSize
 
-		if not uiReady then makeUI(vs); uiReady = true end
-		pulse = math.max(0, math.min(360, pulse + pulseDir * 1.5))
+		if not uiReady and vs.X > 100 and vs.Y > 100 then makeUI(vs) end
 
-		if uiVisible and #uiElems > 0 then
-			local hsv = Color3.fromHSV(pulse/360, 0.75, 1)
+		pulse = pulse + pulseDir * 1.5
+		if pulse >= 360 or pulse <= 0 then pulseDir = -pulseDir end
+
+		if uiVisible and uiReady then
+			local hsv = Color3.fromHSV(math.max(0, math.min(360, pulse))/360, 0.75, 1)
 			for i,e in ipairs(uiElems) do
 				if e then
 					e.Visible = true
@@ -83,13 +110,15 @@ RunS.RenderStepped:Connect(function()
 					if i==2 or i==3 then e.Color = hsv end
 				end
 			end
-			uiElems[4].Text = settings.enabled and "ACTIVE" or "OFF"
-			uiElems[4].Color = settings.enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,50,50)
-			uiElems[6].Color = settings.enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,50,50)
-			uiElems[7].Text = "[-/+] FOV: "..settings.fov
-			uiElems[8].Text = "[[/]] SMOOTH: "..string.format("%.2f",settings.smooth)
-			uiElems[9].Text = "[  ] RANGE: "..settings.range
-		else
+			if uiElems[4] then
+				uiElems[4].Text = settings.enabled and "ACTIVE" or "OFF"
+				uiElems[4].Color = settings.enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,50,50)
+			end
+			if uiElems[6] then uiElems[6].Color = settings.enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,50,50) end
+			if uiElems[7] then uiElems[7].Text = "[  ] FOV: "..settings.fov end
+			if uiElems[8] then uiElems[8].Text = "[  ] SMOOTH: "..string.format("%.2f",settings.smooth) end
+			if uiElems[9] then uiElems[9].Text = "[  ] RANGE: "..settings.range end
+		elseif uiReady then
 			for _,e in ipairs(uiElems) do if e then e.Visible = false end end
 		end
 
@@ -108,7 +137,7 @@ RunS.RenderStepped:Connect(function()
 		end
 		if not keep then
 			lockedTarget = nil; lockedName = ""
-			local best, bdist = nil, math.huge
+			local best, bdist = nil, HUGE
 			for _, c in chars:GetChildren() do
 				if c ~= char then
 				local r = c:FindFirstChild("HumanoidRootPart")
@@ -118,7 +147,7 @@ RunS.RenderStepped:Connect(function()
 					local aok = pcall(function() uid = c:GetAttribute("userId") end)
 					if not aok or not uid then
 						local obj = c:FindFirstChild("userId")
-						if obj then uid = obj.Value end
+						if obj then uid = tonumber(obj.Value) or obj.Value end
 					end
 					if not uid or not friendIds[uid] then
 						local d = (hrp.Position - r.Position).Magnitude
@@ -142,34 +171,39 @@ RunS.RenderStepped:Connect(function()
 					local hp = cam:WorldToViewportPoint(head.Position+Vector3.new(0,0.5,0))
 					local bh = math.abs(sp.Y-hp.Y)*1.8; local bw = bh*0.6
 					if bx then bx.Size=Vector2.new(bw,bh); bx.Position=Vector2.new(sp.X-bw/2,sp.Y-bh/2); bx.Visible=true end
-					if tx then tx.Text="#1 "..math.floor(lockedDist).."m"; tx.Position=Vector2.new(sp.X,sp.Y-bh/2-18); tx.Visible=true end
+					if tx then tx.Text=math.floor(lockedDist).."m"; tx.Position=Vector2.new(sp.X,sp.Y-bh/2-18); tx.Visible=true end
 					if dt then dt.Position=Vector2.new(sp.X,sp.Y); dt.Visible=true end
-					if nm then nm.Text="#1 "..lockedName; nm.Position=Vector2.new(sp.X,sp.Y+bh/2+4); nm.Visible=true end
+					if nm then nm.Text="> "..lockedName; nm.Position=Vector2.new(sp.X,sp.Y+bh/2+4); nm.Visible=true end
 				end
 			else hideAll() end
 		else hideAll(); if fv then fv.Color=Color3.new(1,1,1) end end
 	end)
 end)
 
+-- Input handling
 UIS.InputBegan:Connect(function(key, gpe)
 	if gpe then return end
 	local kc = key.KeyCode
-	if kc == Enum.KeyCode.RightControl or kc == Enum.KeyCode.LeftControl then
-		if uiToggleDeb then uiVisible = not uiVisible; uiToggleDeb = false end
-	elseif kc == Enum.KeyCode.Z then settings.enabled = not settings.enabled
-	elseif uiVisible then
-		if kc == Enum.KeyCode.LeftBracket then settings.smooth = math.max(0.02, settings.smooth - 0.03)
-		elseif kc == Enum.KeyCode.RightBracket then settings.smooth = math.min(0.5, settings.smooth + 0.03)
-		elseif kc == Enum.KeyCode.Minus then settings.fov = math.max(20, settings.fov - 20)
-		elseif kc == Enum.KeyCode.Equals then settings.fov = math.min(500, settings.fov + 20)
+	if (kc == Enum.KeyCode.RightControl or kc == Enum.KeyCode.LeftControl) and ctrlDebounce then
+		uiVisible = not uiVisible; ctrlDebounce = false
+	elseif kc == Enum.KeyCode.Z and zDebounce then
+		settings.enabled = not settings.enabled; zDebounce = false
+	elseif uiVisible and uiReady then
+		if kc == Enum.KeyCode.LeftBracket and smDeb then settings.smooth = math.max(0.02, settings.smooth - 0.03); smDeb = false
+		elseif kc == Enum.KeyCode.RightBracket and smDeb then settings.smooth = math.min(0.5, settings.smooth + 0.03); smDeb = false
+		elseif kc == Enum.KeyCode.Minus and fovDeb then settings.fov = math.max(0, settings.fov - 20); fovDeb = false
+		elseif kc == Enum.KeyCode.Equals and fovDeb then settings.fov = math.min(500, settings.fov + 20); fovDeb = false
 		end
 	end
 end)
 UIS.InputEnded:Connect(function(key, gpe)
 	if gpe then return end
-	if key.KeyCode == Enum.KeyCode.RightControl or key.KeyCode == Enum.KeyCode.LeftControl then
-		uiToggleDeb = true
-	end
+	local kc = key.KeyCode
+	if kc == Enum.KeyCode.RightControl or kc == Enum.KeyCode.LeftControl then ctrlDebounce = true
+	elseif kc == Enum.KeyCode.Z then zDebounce = true
+	elseif kc == Enum.KeyCode.LeftBracket or kc == Enum.KeyCode.RightBracket then smDeb = true
+	elseif kc == Enum.KeyCode.Minus or kc == Enum.KeyCode.Equals then fovDeb = true end
 end)
 
+game:BindToClose(function() cleanup() end)
 print("MDUEL v3 - Z=aimbot, Ctrl=UI, [-/+]=FOV, [[/]]=smooth")
