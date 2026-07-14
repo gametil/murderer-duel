@@ -67,17 +67,24 @@ local chars = WS:FindFirstChild("Characters")
 if not chars then warn("MDUEL no Characters"); cleanup(); return end
 
 local friendIds = {}
-delay(5, function()
-	pcall(function()
-		local t = {}
-		for _, p in game:GetService("Players"):GetPlayers() do
-			if p ~= LP then
-				local s, r = pcall(function() return p:IsFriendsWithAsync(LP.UserId) end)
-				if s and r then t[p.UserId] = true end
-			end
+pcall(function()
+	local t = {}
+	for _, p in game:GetService("Players"):GetPlayers() do
+		if p ~= LP then
+			local s, r = pcall(function() return p:IsFriendsWithAsync(LP.UserId) end)
+			if s and r then t[p.UserId] = true end
 		end
-		friendIds = t
-	end)
+	end
+	friendIds = t
+end)
+-- Also check new players when they join
+game:GetService("Players").PlayerAdded:Connect(function(p)
+	if p ~= LP then
+		delay(2, function()
+			local s, r = pcall(function() return p:IsFriendsWithAsync(LP.UserId) end)
+			if s and r then friendIds[p.UserId] = true end
+		end)
+	end
 end)
 
 local lockedTarget, lockedName, lockedDist = nil, "", 0
