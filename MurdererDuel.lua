@@ -170,46 +170,49 @@ local function getNearest()
     return closest, closestDist
 end
 
--- ESP
-local esps, hud = {}, {}
+-- ESP objects (created once, reused)
+local espBox, espName, espLine, hudBg, hudNm
 local function drawESP(plr, color)
-    for _, v in pairs(esps) do
-        if v.Box then v.Box.Visible = false end
-        if v.Name then v.Name.Visible = false end
-        if v.Line then v.Line.Visible = false end
+    if not Settings.ESP or not plr then
+        if espBox then
+            espBox.Visible = false; espName.Visible = false; espLine.Visible = false
+            hudBg.Visible = false; hudNm.Visible = false
+        end
+        return
     end
-    for _, v in pairs(hud) do if v then v.Visible = false end end
-    esps, hud = {}, {}
-    if not Settings.ESP or not plr then return end
+    -- Init once
+    if not espBox then
+        espBox = Drawing.new("Square"); espName = Drawing.new("Text")
+        espLine = Drawing.new("Line"); hudBg = Drawing.new("Square"); hudNm = Drawing.new("Text")
+    end
     local pchar = plr.Character
     local root = pchar and pchar:FindFirstChild("HumanoidRootPart")
     local head = pchar and pchar:FindFirstChild("Head")
-    if not root or not head then return end
+    if not root or not head then
+        espBox.Visible = false; espName.Visible = false; espLine.Visible = false
+        hudBg.Visible = false; hudNm.Visible = false; return
+    end
     local rp, on = Camera:WorldToViewportPoint(root.Position)
     local hp = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-    if not on then return end
+    if not on then
+        espBox.Visible = false; espName.Visible = false; espLine.Visible = false
+        hudBg.Visible = false; hudNm.Visible = false; return
+    end
     local bh = math.abs(rp.Y - hp.Y) * 2; local bw = bh * 0.6
     local dist = math.floor((Camera.CFrame.Position - root.Position).Magnitude)
-    local bx = Drawing.new("Square")
-    bx.Size = Vector2.new(bw, bh); bx.Position = Vector2.new(rp.X - bw / 2, rp.Y - bh / 2)
-    bx.Color = color; bx.Thickness = 2; bx.Filled = false; bx.Visible = true
-    local nm = Drawing.new("Text")
-    nm.Text = plr.Name .. " [" .. dist .. "m]"; nm.Size = 16
-    nm.Position = Vector2.new(rp.X, rp.Y - bh / 2 - 20)
-    nm.Color = color; nm.Center = true; nm.Outline = true; nm.Visible = true
-    local ln = Drawing.new("Line")
-    ln.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-    ln.To = Vector2.new(rp.X, rp.Y); ln.Color = color; ln.Thickness = 1; ln.Transparency = 0.4; ln.Visible = true
-    esps[1] = {Box = bx, Name = nm, Line = ln}
-    -- Center HUD
+    espBox.Size = Vector2.new(bw, bh); espBox.Position = Vector2.new(rp.X - bw / 2, rp.Y - bh / 2)
+    espBox.Color = color; espBox.Thickness = 2; espBox.Filled = false; espBox.Visible = true
+    espName.Text = plr.Name .. " [" .. dist .. "m]"; espName.Size = 16
+    espName.Position = Vector2.new(rp.X, rp.Y - bh / 2 - 20)
+    espName.Color = color; espName.Center = true; espName.Outline = true; espName.Visible = true
+    espLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+    espLine.To = Vector2.new(rp.X, rp.Y); espLine.Color = color; espLine.Thickness = 1; espLine.Transparency = 0.4; espLine.Visible = true
+    -- Center HUD below crosshair
     local cx, cy = Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2
-    local hudBg = Drawing.new("Square")
     hudBg.Size = Vector2.new(180, 24); hudBg.Position = Vector2.new(cx - 90, cy + 30)
     hudBg.Color = Color3.new(0, 0, 0); hudBg.Filled = true; hudBg.Transparency = 0.6; hudBg.Visible = true
-    local hudNm = Drawing.new("Text")
     hudNm.Text = "▶ " .. plr.Name .. " [" .. dist .. "m]"; hudNm.Size = 18
     hudNm.Position = Vector2.new(cx, cy + 42); hudNm.Color = color; hudNm.Center = true; hudNm.Outline = true; hudNm.Visible = true
-    hud = {hudBg, hudNm}
 end
 
 -- Aim
