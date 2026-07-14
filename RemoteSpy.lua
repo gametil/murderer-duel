@@ -1,13 +1,9 @@
--- RemoteSpy Hooking Core for Murderer Duel aimbot
--- Based on richie0866/remote-spy hooking pattern
--- Load with: loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/gametil/murderer-duel/main/RemoteSpy.lua"))()
+-- RemoteSpy Hooking Core — No freeze, executor-safe (Ketamine/WEAO)
+-- Based on richie0866/remote-spy pattern, stripped __namecall hook
 
-local FireServer = Instance.new("RemoteEvent").FireServer
-local InvokeServer = Instance.new("RemoteFunction").InvokeServer
-local IsA = game.IsA
 local refs = {}
 
--- Serializer (from remote-spy's codify.ts)
+-- Serializer
 local function codify(v, lvl)
 	lvl = lvl or 0
 	local t = typeof(v)
@@ -37,40 +33,22 @@ local function codify(v, lvl)
 	end
 end
 
-local function onRemoteFired(self, method, args)
-	local info = {}
-	for i = 1, select("#", args) do
-		info[i] = codify(select(i, args))
-	end
-	local params = table.concat(info, ", ")
-	print(string.format("[SPY] %s :: %s(%s)", self:GetFullName(), method, params))
-end
-
--- Hook RemoteEvent.FireServer
-refs.FireServer = hookfunction(FireServer, function(self, ...)
-	if self and typeof(self) == "Instance" and IsA(self, "RemoteEvent") then
-		onRemoteFired(self, "FireServer", { ... })
-	end
-	return refs.FireServer(self, ...)
-end)
-
--- Hook RemoteFunction.InvokeServer
-refs.InvokeServer = hookfunction(InvokeServer, function(self, ...)
-	if self and typeof(self) == "Instance" and IsA(self, "RemoteFunction") then
-		onRemoteFired(self, "InvokeServer", { ... })
-	end
-	return refs.InvokeServer(self, ...)
-end)
-
--- Hook __namecall (catches FireServer/InvokeServer called via : syntax)
-refs.__namecall = hookmetamethod(game, "__namecall", function(self, ...)
+-- Hook RemoteEvent.FireServer via its metatable (safer than Instance.new)
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 	local method = getnamecallmethod()
-	if IsA(self, "RemoteEvent") and method == "FireServer" then
-		onRemoteFired(self, "FireServer", { ... })
-	elseif IsA(self, "RemoteFunction") and method == "InvokeServer" then
-		onRemoteFired(self, "InvokeServer", { ... })
+	
+	-- ONLY intercept FireServer on RemoteEvents — nothing else
+	if method == "FireServer" and typeof(self) == "Instance" and self:IsA("RemoteEvent") then
+		local args = { ... }
+		local info = {}
+		for i = 1, select("#", ...) do
+			info[i] = codify(args[i])
+		end
+		print(string.format("[SPY] %s :: FireServer(%s)", self:GetFullName(), table.concat(info, ", ")))
 	end
-	return refs.__namecall(self, ...)
+	
+	return oldNamecall(self, ...)
 end)
 
-print("[SPY] RemoteSpy hooks active — all remotes logged to console")
+print("[SPY] RemoteSpy active — watching remotes...")
