@@ -82,26 +82,30 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ----- AUTO-THROW -----
--- Hook the throw remote so when we fire it aims at target
 local ThrowRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") and
                     game:GetService("ReplicatedStorage").Remotes:FindFirstChild("ThrowReplicate")
 
 if ThrowRemote then
-    local oldFire = ThrowRemote.FireServer
-    ThrowRemote.FireServer = function(self, data, ...)
-        if Target and Target.Character then
-            local root = Target.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                -- Auto-aim throw toward target
-                if type(data) == "table" then
+    -- Fix: Game strips FireServer from RemoteEvents
+    -- Use hookmetamethod to intercept instead
+    local __namecall
+    __namecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        if method == "FireServer" and self == ThrowRemote then
+            local data = ...
+            if Target and Target.Character then
+                local root = Target.Character:FindFirstChild("HumanoidRootPart")
+                if root and type(data) == "table" then
                     data.target = root.Position
-                    data.origin = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and
-                                  LP.Character.HumanoidRootPart.Position or data.origin
+                    local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                    if myRoot then data.origin = myRoot.Position end
                 end
             end
         end
-        return oldFire(self, data, ...)
-    end
+        return __namecall(self, ...)
+    end)
+    
+    warn("[[ AIMBOT ]] ThrowRemote hooked via __namecall")
 end
 
 ----- SIMPLE ESP -----
