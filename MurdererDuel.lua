@@ -215,7 +215,7 @@ spyBtn.MouseButton1Click:Connect(function()
     spyBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
     spyBtn.Text = "✓ Loading..."
     pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/gametil/murderer-duel/main/RemoteSpy.lua"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/task5555/Plex/main/main.lua"))()
     end)
     spyBtn.Text = "✓ Spy Ready"
     task.wait(1.5)
