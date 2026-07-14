@@ -104,7 +104,7 @@ s.ResetOnSpawn = false
 s.Parent = LP:WaitForChild("PlayerGui")
 
 local m = Instance.new("Frame")
-m.Size = UDim2.new(0, 220, 0, 160)
+m.Size = UDim2.new(0, 220, 0, 190)
 m.Position = UDim2.new(0, 20, 0, 300)
 m.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 m.BackgroundTransparency = 0.15
@@ -199,6 +199,30 @@ end
 
 makeToggle("Aimbot", true, 40)
 makeToggle("ESP", true, 75)
+
+-- Remote Spy button
+local spyBtn = Instance.new("TextButton")
+spyBtn.Size = UDim2.new(0, 190, 0, 24)
+spyBtn.Position = UDim2.new(0, 15, 0, 130)
+spyBtn.BackgroundColor3 = Color3.fromRGB(40, 42, 54)
+spyBtn.Text = "🔍 Remote Spy"
+spyBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+spyBtn.TextSize = 12
+spyBtn.Font = Enum.Font.Gotham
+spyBtn.BorderSizePixel = 0
+Instance.new("UICorner").CornerRadius = UDim.new(0, 6)
+spyBtn.MouseButton1Click:Connect(function()
+    spyBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+    spyBtn.Text = "✓ Loading..."
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gametil/murderer-duel/main/RemoteSpy.lua"))()
+    end)
+    spyBtn.Text = "✓ Spy Ready"
+    task.wait(1.5)
+    spyBtn.BackgroundColor3 = Color3.fromRGB(40, 42, 54)
+    spyBtn.Text = "🔍 Remote Spy"
+end)
+spyBtn.Parent = m
 
 local hl = Instance.new("TextLabel")
 hl.Size = UDim2.new(1, -30, 0, 20)
