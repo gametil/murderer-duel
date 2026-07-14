@@ -22,15 +22,18 @@ if not chars then warn("[MDUEL] No Characters folder"); return end
 -- Friend check
 local friendIds = {}
 local function refreshFriends()
-	friendIds = {}
-	for _, p in game:GetService("Players"):GetPlayers() do
-		if p ~= LP and p:IsFriendsWithAsync(LP.UserId) then
-			friendIds[p.UserId] = true
+	local ok = pcall(function()
+		local new = {}
+		for _, p in game:GetService("Players"):GetPlayers() do
+			if p ~= LP then
+				local s, r = pcall(function() return p:IsFriendsWithAsync(LP.UserId) end)
+				if s and r then new[p.UserId] = true end
+			end
 		end
-	end
+		friendIds = new
+	end)
 end
-task.spawn(function() while task.wait(30) do pcall(refreshFriends) end end)
-task.spawn(function() task.wait(3); pcall(refreshFriends) end)
+task.spawn(function() task.wait(5); pcall(refreshFriends) end)
 
 -- Target lock system — stays on #1, ignores 2nd
 local lockedTarget, lockedName = nil, ""
