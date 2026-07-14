@@ -166,14 +166,13 @@ RunS.RenderStepped:Connect(function()
 		if not keep then
 			lockedTarget = nil; lockedName = ""
 			local best, bdist = nil, HUGE
-			local myId = LP.UserId
+			local cName = char and char.Name or ""
 			for _, c in chars:GetChildren() do
-				local cUid = getUserId(c)
-				if c == char or (cUid and tonumber(cUid) == myId) then -- skip self via char or userId
-				else
+				-- Skip self: instance check + name check
+				if c ~= char and c.Name ~= cName then
 					local r = findRootPart(c)
-					local h = findHumanoid(c)
 					if r then
+						local cUid = getUserId(c)
 						if not cUid or not friendIds[cUid] then
 							local d = (hrp.Position - r.Position).Magnitude
 							if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
