@@ -10,7 +10,7 @@ local debugCount=0
 -- Root part finder (8 fallback names + any BasePart)
 local function rp(m)
  if not m then return nil end
- for _,n in ipairs({"HumanoidRootPart","UpperTorso","LowerTorso","Torso","Root","Hip","Handle","Head"})do
+ for _,n in ipairs({"HumanoidRootPart","UpperTorso","LowerTorso","Torso","Root","Hip","Head"})do
   local p=m:FindFirstChild(n)
   if p and p:IsA("BasePart")then return p end
  end
@@ -45,11 +45,11 @@ local function rebuildTargets()
   end
  end
  
- -- Source 3: Players characters (standard Roblox)
+ -- Source 3: Players characters + name fallback
  for _,p in ipairs(PS:GetPlayers())do
   if p~=LP then
-   local c=p.Character
-   if c and c~=selfChar and c.Name~=selfName then
+   local c=p.Character or WS:FindFirstChild(p.Name)or WS:FindFirstChild(p.DisplayName)
+   if c and c~=selfChar and c.Name~=selfName and not built[c]then
     local r=rp(c)
     if r then built[c]=r end
    end
