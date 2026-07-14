@@ -71,12 +71,18 @@ local function rebuildTargets()
   end
  end
  
- -- Source 4: Any root-named BasePart in workspace (deep O(1) per part)
+ -- Source 4+6 combined: single GetDescendants pass (BasePart root names + Humanoid)
  for _,p in ipairs(WS:GetDescendants())do
   if p:IsA("BasePart")and RP_NAMES[p.Name]then
    local m=p.Parent
    if m and m:IsA("Model")and m~=selfChar and m.Name~=selfName and not built[m]then
     built[m]=p;sCount[4]=sCount[4]+1
+   end
+  elseif p:IsA("Humanoid")then
+   local m=p.Parent
+   if m and m:IsA("Model")and m~=selfChar and m.Name~=selfName and not built[m]then
+    local r=rp(m)
+    if r then built[m]=r;sCount[6]=sCount[6]+1 end
    end
   end
  end
@@ -89,17 +95,6 @@ local function rebuildTargets()
      local r=rp(c)
      if r then built[c]=r;sCount[5]=sCount[5]+1 end
     end
-   end
-  end
- end
- 
- -- Source 6: Any Humanoid in workspace (ultimate catch-all)
- for _,p in ipairs(WS:GetDescendants())do
-  if p:IsA("Humanoid")then
-   local m=p.Parent
-   if m and m:IsA("Model")and m~=selfChar and m.Name~=selfName and not built[m]then
-    local r=rp(m)
-    if r then built[m]=r;sCount[6]=sCount[6]+1 end
    end
   end
  end
