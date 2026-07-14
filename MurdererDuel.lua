@@ -5,6 +5,7 @@ local WS=game:GetService("Workspace")
 local PS=game:GetService("Players")
 
 local cfg={range=350,fov=200,smooth=0.15}
+local debugCount=0
 
 -- Root part finder (8 fallback names + any BasePart)
 local function rp(m)
@@ -80,9 +81,15 @@ RS.RenderStepped:Connect(function()
   local hrp=rp(char)
   if not hrp then targets={};return end
   
-  -- Rebuild cache every 60 frames (~1s)
+  -- Rebuild every 30 frames (~0.5s) or when empty
   buildTick=buildTick+1
-  if buildTick>=60 or not next(targets)then rebuildTargets()end
+  if buildTick>=30 or not next(targets)then rebuildTargets()
+   debugCount=debugCount+1
+   if debugCount%5==0 then
+    local n=0;for _ in pairs(targets)do n=n+1 end
+    warn("MDUEL: "..n.." targets detected")
+   end
+  end
   
   local hp=hrp.Position
   local best,bd=nil,1/0
