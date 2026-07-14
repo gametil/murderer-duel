@@ -2,7 +2,7 @@
 local RunS = game:GetService("RunService")
 local WS = game:GetService("Workspace")
 local LP = game:GetService("Players").LocalPlayer
-local Range, FOV = 250, 200
+local Range, FOV, Smoothness = 250, 200, 0.15
 
 local bx, tx, dt, fv, nm
 pcall(function()
@@ -71,7 +71,7 @@ RunS.RenderStepped:Connect(function()
 		if on and sp.Z > 0 then
 			local cx, cy = cam.ViewportSize.X/2, cam.ViewportSize.Y/2
 			if FOV==0 or (Vector2.new(sp.X-cx,sp.Y-cy).Magnitude) <= FOV then
-				cam.CFrame = CFrame.lookAt(cam.CFrame.Position, lockedTarget.Position)
+				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, lockedTarget.Position), Smoothness)
 				if fv then fv.Color = Color3.new(0,1,0) end
 			else
 				if fv then fv.Color = Color3.new(1,1,1) end
