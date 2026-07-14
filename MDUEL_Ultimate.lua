@@ -1,4 +1,4 @@
--- MDUEL Ultimate v4
+-- MDUEL Ultimate v5 — all bugs fixed
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
@@ -19,18 +19,38 @@ local mmr=env.mousemoverel
 
 warn("MD: hook="..tostring(hmm~=nil).." namecall="..tostring(gnm~=nil).." mmr="..tostring(mmr~=nil))
 
+-- FIX E: proper Drawing type check
+local hasDraw=type(env.Drawing)=="table"and type(env.Drawing.new)=="function"
+warn("MD: Draw="..tostring(hasDraw))
+
 -- Root part finder for custom Murderer Duel rigs
-local RP={"UpperTorso","Head","HumanoidRootPart","LowerTorso","Torso","Root","Hip"}
+local RP_TOP={"Head","UpperTorso","Torso","Root","HumanoidRootPart","Hip"}
+local RP_BOT={"HumanoidRootPart","LowerTorso","Torso","Root","Hip","UpperTorso","Head"}
 local function rp(m)
  if not m then return nil end
- for _,n in ipairs(RP)do
+ for _,n in ipairs(RP_TOP)do
   local p=m:FindFirstChild(n)
   if p and p:IsA("BasePart")then return p end
  end
- for _,c in ipairs(m:GetChildren())do
-  if c:IsA("BasePart")then return c end
- end
+ for _,c in ipairs(m:GetChildren())do if c:IsA("BasePart")then return c end end
  return nil
+end
+-- FIX A: separate top/bottom part finders for ESP box height
+local function rpTop(m)
+ if not m then return nil end
+ for _,n in ipairs(RP_TOP)do
+  local p=m:FindFirstChild(n)
+  if p and p:IsA("BasePart")then return p end
+ end
+ return rp(m)
+end
+local function rpBot(m)
+ if not m then return nil end
+ for _,n in ipairs(RP_BOT)do
+  local p=m:FindFirstChild(n)
+  if p and p:IsA("BasePart")then return p end
+ end
+ return rp(m)
 end
 
 -- Target cache
@@ -46,25 +66,21 @@ local function rebuild()
    if r then t[m]=r end
   end
  end
- -- workspace models
  for _,c in ipairs(WS:GetChildren())do
   if c:IsA("Model")then add(c)end
  end
- -- workspace.Characters folder
  local ch=WS:FindFirstChild("Characters")
  if ch then
   for _,c in ipairs(ch:GetChildren())do
    if c:IsA("Model")then add(c)end
   end
  end
- -- Players
  for _,p in ipairs(PS:GetPlayers())do
   if p~=LP then
    local c=p.Character
    if c then add(c)end
   end
  end
- -- other folders
  for _,f in ipairs(WS:GetChildren())do
   if f:IsA("Folder")and f.Name~="Characters"then
    for _,c in ipairs(f:GetChildren())do
@@ -73,9 +89,10 @@ local function rebuild()
   end
  end
  targets=t;buildTick=0
- warn("MD: targets="..#targets)
+ -- FIX B: count targets properly (not # on hash table)
+ local n=0;for _ in pairs(targets)do n=n+1 end
+ warn("MD: targets="..n)
 end
-
 rebuild()
 
 -- Universal target getter
@@ -118,11 +135,13 @@ if cfg.silent and hmm then
     return oldIdx(s,i)
    end)
    warn("MD: Mouse.Hit hook ok")
+  else
+   warn("MD: GetMouse nil — Mouse.Hit disabled")
   end
  end)
 end
 
--- SILENT AIM 2: Raycast __namecall
+-- SILENT AIM 2: Raycast __namecall (FIX C: include WS.Terrain)
 if cfg.silent and hmm and gnm then
  pcall(function()
   local old
@@ -131,11 +150,13 @@ if cfg.silent and hmm and gnm then
    if m=="Raycast"or m=="FindPartOnRayWithIgnoreList"or m=="FindPartOnRayWithWhitelist"or m=="FindPartOnRay"then
     local a={...}
     local s=a[1]
-    if s==WS and a[2]then
+    if(s==WS or s==WS.Terrain)and a[2]then
      local t=getTarget()
      if t then
       if m=="Raycast"then a[3]=(t.Position-a[2]).Unit*1000
-      else local r=a[2];a[2]=Ray.new(r.Origin,(t.Position-r.Origin).Unit*1000)end
+      elseif a[2].Origin then
+       local r=a[2];a[2]=Ray.new(r.Origin,(t.Position-r.Origin).Unit*1000)
+      end
       return old(unpack(a))
      end
     end
@@ -184,48 +205,52 @@ if mmr then
  end)
 end
 
--- ESP (simplified)
-if cfg.esp then
- pcall(function()
-  if not Drawing then warn("MD: no Drawing API");return end
-  local objs={}
-  local function add(p)
-   if p==LP or objs[p]then return end
-   local b=Drawing.new("Square")
-   local n=Drawing.new("Text")
-   b.Thickness=2;b.Filled=false;b.Visible=false
-   n.Size=14;n.Outline=true;n.Center=true;n.Visible=false
-   objs[p]={box=b,name=n}
-  end
-  local function update()
-   for p,o in pairs(objs)do
-    local c=p.Character
-    if not c or not c.Parent then
-     o.box.Visible=false;o.name.Visible=false
-    else
-     local head=rp(c);local root=rp(c)
-     if head and root then
-      local hp,on=WS.CurrentCamera:WorldToViewportPoint(head.Position+Vector3.new(0,1.5,0))
-      if on then
-       local rp2=WS.CurrentCamera:WorldToViewportPoint(root.Position-Vector3.new(0,1,0))
-       local h=math.abs(hp.Y-rp2.Y);local w=h*0.5
-       local x=hp.X-w/2;local y=hp.Y-h
-       local cl=cfg.esp_color_enemy
-       if cfg.teamCheck and p.Team==LP.Team then cl=cfg.esp_color_team end
-       o.box.Position=Vector2.new(x,y);o.box.Size=Vector2.new(w,h);o.box.Color=cl;o.box.Visible=true
-       o.name.Position=Vector2.new(x+w/2,y-14);o.name.Text=p.Name;o.name.Color=cl;o.name.Visible=true
-      else o.box.Visible=false;o.name.Visible=false end
+-- ESP (FIX A: use rpTop/rpBot for correct box height)
+if cfg.esp and hasDraw then
+ local objs={}
+ local function add(p)
+  if p==LP or objs[p]then return end
+  local b=Drawing.new("Square")
+  local n=Drawing.new("Text")
+  b.Thickness=2;b.Filled=false;b.Visible=false
+  n.Size=14;n.Outline=true;n.Center=true;n.Visible=false
+  objs[p]={box=b,name=n}
+ end
+ local function update()
+  for p,o in pairs(objs)do
+   local c=p.Character
+   if not c or not c.Parent then
+    o.box.Visible=false;o.name.Visible=false
+   else
+    local top=rpTop(c);local bot=rpBot(c)
+    if top and bot then
+     local tp,on=WS.CurrentCamera:WorldToViewportPoint(top.Position+Vector3.new(0,0.5,0))
+     if on then
+      local bp=WS.CurrentCamera:WorldToViewportPoint(bot.Position-Vector3.new(0,0.5,0))
+      local h=math.abs(tp.Y-bp.Y);if h<20 then h=20 end
+      local w=h*0.55;if w<15 then w=15 end
+      local x=tp.X-w/2;local y=tp.Y-h
+      local cl=cfg.esp_color_enemy
+      if cfg.teamCheck and p.Team==LP.Team then cl=cfg.esp_color_team end
+      o.box.Position=Vector2.new(x,y);o.box.Size=Vector2.new(w,h);o.box.Color=cl;o.box.Visible=true
+      o.name.Position=Vector2.new(x+w/2,y-14);o.name.Text=p.Name;o.name.Color=cl;o.name.Visible=true
      else o.box.Visible=false;o.name.Visible=false end
-    end
+    else o.box.Visible=false;o.name.Visible=false end
    end
   end
-  for _,p in ipairs(PS:GetPlayers())do add(p)end
-  PS.PlayerAdded:Connect(add)
-  PS.PlayerRemoving:Connect(function(p)
-   if objs[p]then objs[p].box:Remove();objs[p].name:Remove();objs[p]=nil end
-  end)
-  RS.RenderStepped:Connect(update)
+ end
+ for _,p in ipairs(PS:GetPlayers())do add(p)end
+ PS.PlayerAdded:Connect(add)
+ PS.PlayerRemoving:Connect(function(p)
+  if objs[p]then objs[p].box:Remove();objs[p].name:Remove();objs[p]=nil end
  end)
+ -- FIX F: BindToClose cleanup
+ game:BindToClose(function()
+  for _,o in pairs(objs)do
+   pcall(function()o.box:Remove();o.name:Remove()end)
+  end
+ end)
+ RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL ULTIMATE v4 loaded")
+warn("MDUEL ULTIMATE v5 loaded")
