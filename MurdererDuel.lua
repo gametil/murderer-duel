@@ -68,12 +68,10 @@ for _, p in PS:GetPlayers() do
 	if p ~= LP then
 		if p.Character then tryAddTarget(p.Character) end
 		p.CharacterAdded:Connect(function(m) delay(0.5, function() tryAddTarget(m) end) end)
-		p.CharacterRemoved:Connect(tryRemoveTarget)
 	end
 end
 PS.PlayerAdded:Connect(function(p)
 	p.CharacterAdded:Connect(function(m) delay(0.5, function() tryAddTarget(m) end) end)
-	p.CharacterRemoved:Connect(tryRemoveTarget)
 end)
 local function hideAll()
 	if bx then bx.Visible = false end; if tx then tx.Visible = false end
