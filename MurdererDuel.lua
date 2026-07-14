@@ -40,45 +40,8 @@ local function findRootPart(m)
 	return nil
 end
 
--- Find humanoid with fallback
-local function findHumanoid(m)
-	if not m then return nil end
-	return m:FindFirstChildOfClass("Humanoid")
-end
-
--- Get userId with fallback names/casings
-local function getUserId(m)
-	if not m then return nil end
-	for _, n in ipairs({"userId","UserId","userid","playerId","PlayerId","uid","Uid"}) do
-		local ok, v = pcall(function() return m:GetAttribute(n) end)
-		if ok and v ~= nil then return tonumber(v) or v end
-	end
-	for _, n in ipairs({"userId","UserId","userid","playerId","PlayerId","uid","Uid"}) do
-		local o = m:FindFirstChild(n)
-		if o then
-			local v = o:IsA("NumberValue") and o.Value or tonumber(tostring(o.Value))
-			if v ~= nil then return v end
-		end
-	end
-	return nil
-end
-
 local chars = WS:FindFirstChild("Characters")
 if not chars then warn("MDUEL no Characters"); cleanup(); return end
-
-local friendIds = {}
-delay(0, function()
-	pcall(function()
-		local t = {}
-		for _, p in game:GetService("Players"):GetPlayers() do
-			if p ~= LP then
-				local s, r = pcall(function() return p:IsFriendsWithAsync(LP.UserId) end)
-				if s and r then t[p.UserId] = true end
-			end
-		end
-		friendIds = t
-	end)
-end)
 
 local lockedTarget, lockedName, lockedDist = nil, "", 0
 local function hideAll()
@@ -172,11 +135,8 @@ RunS.RenderStepped:Connect(function()
 				if c ~= char and c.Name ~= cName then
 					local r = findRootPart(c)
 					if r then
-						local cUid = getUserId(c)
-						if not cUid or not friendIds[cUid] then
-							local d = (hrp.Position - r.Position).Magnitude
-							if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
-						end
+						local d = (hrp.Position - r.Position).Magnitude
+						if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
 					end
 				end
 			end
