@@ -227,19 +227,31 @@ local function doAim(plr)
     pcall(function() mousemoverel(sx - Mouse.X, sy - Mouse.Y) end)
 end
 
--- Main
+-- Main loop (throttled to reduce lag)
+local frameCount = 0
 RunService.RenderStepped:Connect(function()
-    pcall(function()
-        local nearest, dist2 = getNearest()
-        local color = Color3.new(1, 0.3, 0.3)
-        if nearest and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (LP.Character.HumanoidRootPart.Position - nearest.Character.HumanoidRootPart.Position).Magnitude
+    frameCount = frameCount + 1
+    if frameCount % 2 == 0 then return end  -- skip every other frame = ~30fps
+    
+    local nearest = getNearest()
+    local color = Color3.new(1, 0.3, 0.3)
+    
+    -- Safe color calc — won't crash if character nil
+    if nearest then
+        local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        local pRoot = nearest.Character and nearest.Character:FindFirstChild("HumanoidRootPart")
+        if myRoot and pRoot then
+            local d = (myRoot.Position - pRoot.Position).Magnitude
             local hue = math.clamp(d / 150, 0, 1) * 0.3
             color = Color3.fromHSV(hue, 0.9, 0.9)
         end
-        drawESP(nearest, color)
-        if Settings.Aimbot and Settings._holding and nearest then doAim(nearest) end
-    end)
+    end
+    
+    drawESP(nearest, color)
+    
+    if Settings.Aimbot and Settings._holding and nearest then
+        doAim(nearest)
+    end
 end)
 
 warn("[[ MDUEL ]] Loaded | Hold RightCtrl to aim")
