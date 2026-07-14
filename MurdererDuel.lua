@@ -112,8 +112,9 @@ RS.RenderStepped:Connect(function()
   if best then
    local vp=cam:WorldToViewportPoint(best.Position)
    local tg=Vector2.new(vp.X,vp.Y)
-   aimPos=aimPos+(tg-aimPos)*cfg.smooth
-   game:GetService("UserInputService"):MoveMouse(aimPos)
+   local prev=aimPos
+   aimPos=prev+(tg-prev)*cfg.smooth
+   mousemoverel(aimPos.X-prev.X,aimPos.Y-prev.Y)
   end
  end)
 end)
