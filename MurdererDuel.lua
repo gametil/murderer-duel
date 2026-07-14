@@ -1,207 +1,136 @@
---[[ Murderer Duel — FIXED Aimbot + ESP + Avatar Fix ]]
--- v3: All 5 console errors fixed
+--[[ Murderer Duel — NO FREEZE aimbot + ESP ]]
+-- v4: zero hooks, throttled, lightweight
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LP = Players.LocalPlayer
 local Mouse = LP:GetMouse()
-local UIS = game:GetService("UserInputService")
 
------ CONFIG -----
-local Settings = {
-    Enabled = true,
-    Range = 200,
-    Smoothness = 0.7,
-}
-
------ FIX 1: hookmetamethod (not .FireServer) -----
--- Root cause: Game sets ThrowReplicate.FireServer = nil (anti-exploit)
--- Fix: Hook __namecall at metatable level — catches all FireServer dispatches
-local ThrowRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") and
-                    game:GetService("ReplicatedStorage").Remotes:FindFirstChild("ThrowReplicate")
-
-local oldNamecall
-if ThrowRemote and hookmetamethod then
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local method = getnamecallmethod()
-        if method == "FireServer" and self == ThrowRemote then
-            local data = ...
-            if Target and Target.Character then
-                local root = Target.Character:FindFirstChild("HumanoidRootPart")
-                if root and type(data) == "table" then
-                    data.target = root.Position
-                    local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    if myRoot then data.origin = myRoot.Position end
-                end
-            end
-        end
-        return oldNamecall(self, ...)
-    end)
-end
-
------ FIX 3 & 5: Sound error suppressor + Effect guard -----
--- Root cause #3: Unreviewed asset rbxassetid://110937062102535 causes load failure
--- Root cause #5: Flammable effect has nil params from BindableEvent:Fire()
--- Fix: Wrap warn/print to suppress asset errors + hook BindableEvent to validate args
-local oldWarn = warn
-local assetBlacklist = {"110937062102535"}
-warn = function(...)
-    local msg = tostring(...)
-    for _, asset in ipairs(assetBlacklist) do
-        if msg:find(asset) then return end
-    end
-    return oldWarn(...)
-end
-
--- Fix #5: Suppress effect replication errors
-local oldPrint = print
-print = function(...)
-    local msg = tostring(...)
-    if msg:find("parameter(s) failed to replicate") or msg:find("Didn't run effect") then return end
-    return oldPrint(...)
-end
-
------ TARGETING -----
+local Range = 200
+local Smoothness = 0.7
 local Target = nil
 
+-----[ THROTTLED TARGETING (30fps) ]-----
+local fc = 0
 local function getNearest()
-    local closest, closestDist = nil, math.huge
+    local closest, cd = nil, math.huge
     local myChar = LP.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myRoot then return end
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LP then continue end
-        local char = plr.Character
-        if not char then continue end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then continue end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum or hum.Health <= 0 then continue end
-        local dist = (myRoot.Position - root.Position).Magnitude
-        if dist > Settings.Range then continue end
-        if dist < closestDist then
-            closest = plr
-            closestDist = dist
-        end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LP then continue end
+        local c = p.Character
+        if not c then continue end
+        local r = c:FindFirstChild("HumanoidRootPart")
+        if not r then continue end
+        local h = c:FindFirstChildOfClass("Humanoid")
+        if not h or h.Health <= 0 then continue end
+        local d = (myRoot.Position - r.Position).Magnitude
+        if d > Range then continue end
+        if d < cd then closest, cd = p, d end
     end
     return closest
 end
 
------ AIM LOCK -----
+-----[ AIM LOCK (smooth, throttled) ]-----
 RunService.RenderStepped:Connect(function()
-    if not Settings.Enabled then return end
+    fc = fc + 1
+    if fc % 2 ~= 0 then return end  -- 30fps throttle
+    
     Target = getNearest()
     if not Target then return end
+    
     local root = Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    local sp, onScreen = Camera:WorldToViewportPoint(root.Position)
-    if not onScreen then return end
     
-    local sx = Mouse.X + (sp.X - Mouse.X) * Settings.Smoothness
-    local sy = Mouse.Y + (sp.Y - Mouse.Y) * Settings.Smoothness
-    pcall(function()
-        mousemoverel(sx - Mouse.X, sy - Mouse.Y)
-    end)
+    local sp, on = Camera:WorldToViewportPoint(root.Position)
+    if not on then return end
+    
+    local sx = Mouse.X + (sp.X - Mouse.X) * Smoothness
+    local sy = Mouse.Y + (sp.Y - Mouse.Y) * Smoothness
+    pcall(function() mousemoverel(sx - Mouse.X, sy - Mouse.Y) end)
 end)
 
------ FIX: ESP (Drawing objects created ONCE, reused every frame) -----
+-----[ ESP (reused Drawing, throttled) ]-----
 local espBox = Drawing.new("Square")
 local espName = Drawing.new("Text")
 local espDot = Drawing.new("Circle")
+espBox.Visible = false
+espName.Visible = false
+espDot.Visible = false
 
-local function drawESP()
-    if not Target then
+RunService.RenderStepped:Connect(function()
+    if not Target or not Target.Character then
         espBox.Visible = false
         espName.Visible = false
         espDot.Visible = false
         return
     end
-    local root = Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")
-    local head = Target.Character and Target.Character:FindFirstChild("Head")
+    
+    local root = Target.Character:FindFirstChild("HumanoidRootPart")
+    local head = Target.Character:FindFirstChild("Head")
     if not root or not head then
-        espBox.Visible = false
-        espName.Visible = false
-        espDot.Visible = false
+        espBox.Visible = false; espName.Visible = false; espDot.Visible = false
         return
     end
     
     local rp = Camera:WorldToViewportPoint(root.Position)
     local hp = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
     if not rp[3] then
-        espBox.Visible = false
-        espName.Visible = false
-        espDot.Visible = false
+        espBox.Visible = false; espName.Visible = false; espDot.Visible = false
         return
     end
     
-    local bh = math.abs(rp.Y - hp.Y) * 1.5
+    if fc % 2 ~= 0 then return end  -- same throttle as aim
+    
+    local bh = math.abs(rp.Y - hp.Y) * 1.8
     local bw = bh * 0.6
     local dist = math.floor((Camera.CFrame.Position - root.Position).Magnitude)
     
     espBox.Size = Vector2.new(bw, bh)
     espBox.Position = Vector2.new(rp.X - bw/2, rp.Y - bh/2)
-    espBox.Color = Color3.new(1, 0.2, 0.2)
-    espBox.Thickness = 2
-    espBox.Filled = false
     espBox.Visible = true
     
     espName.Text = Target.Name .. " [" .. dist .. "m]"
-    espName.Size = 14
     espName.Position = Vector2.new(rp.X, rp.Y - bh/2 - 18)
-    espName.Color = Color3.new(1, 1, 1)
-    espName.Center = true
-    espName.Outline = true
     espName.Visible = true
     
     espDot.Position = Vector2.new(rp.X, rp.Y)
-    espDot.Radius = 5
-    espDot.Color = Color3.new(0, 1, 0)
-    espDot.Thickness = 2
-    espDot.Filled = false
     espDot.Visible = true
-end
+end)
 
-RunService.RenderStepped:Connect(drawESP)
-
------ FIX: Avatar Fix (destroy broken accessory BEFORE game loads sound) -----
-local function fixAvatar()
+-----[ AVATAR FIX (no loops, one-shot) ]-----
+spawn(function()
+    task.wait(3)
     local char = LP.Character
     if not char then return end
-    
-    -- Destroy broken accessory immediately (stops sound error #3)
-    local found = char:FindFirstChildOfClass("Accessory")
-    while found do
-        local h = found:FindFirstChild("Handle")
+    local acc = char:FindFirstChildOfClass("Accessory")
+    while acc do
+        local h = acc:FindFirstChild("Handle")
         if h then
             local m = h:FindFirstChildOfClass("SpecialMesh") or h:FindFirstChildOfClass("MeshPart")
             if m then
                 local mid = ""
                 pcall(function() mid = m.MeshId end)
                 if mid == "" or mid:find("110937062102535") then
-                    found:Destroy()
+                    acc:Destroy()
                 end
             end
         end
-        found = char:FindFirstChildOfClass("Accessory")
+        acc = char:FindFirstChildOfClass("Accessory")
     end
-    
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum then pcall(function() hum:BuildRigFromAttachments() end) end
-end
-
-spawn(function()
-    task.wait(2)
-    fixAvatar()
 end)
 
------ UI (FIX: all children parented correctly) -----
+-----[ UI (lightweight, no hooks) ]-----
 local s = Instance.new("ScreenGui")
 s.Name = "MDUEL_AIM"; s.ResetOnSpawn = false
 s.Parent = LP:WaitForChild("PlayerGui")
 
 local f = Instance.new("Frame")
-f.Size = UDim2.new(0, 200, 0, 110)
+f.Size = UDim2.new(0, 200, 0, 100)
 f.Position = UDim2.new(0, 15, 0, 250)
 f.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
 f.BackgroundTransparency = 0.15
@@ -213,35 +142,35 @@ f.Parent = s
 local t = Instance.new("TextLabel")
 t.Size = UDim2.new(1, 0, 0, 28)
 t.BackgroundTransparency = 1
-t.Text = "🎯 MDUEL AIMBOT"
+t.Text = "🎯 MDUEL"
 t.TextColor3 = Color3.fromRGB(220, 220, 255)
 t.TextSize = 14; t.Font = Enum.Font.GothamBold
 t.Parent = f
 
 local st = Instance.new("TextLabel")
 st.Size = UDim2.new(1, -20, 0, 18)
-st.Position = UDim2.new(0, 10, 0, 30)
+st.Position = UDim2.new(0, 10, 0, 32)
 st.BackgroundTransparency = 0.5
 st.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-st.Text = "Auto Aim + Throw [Always ON]"
+st.Text = "Auto Aim [30fps]"
 st.TextColor3 = Color3.fromRGB(140, 200, 140)
 st.TextSize = 11; st.Font = Enum.Font.Gotham
 st.Parent = f
 
 local rl = Instance.new("TextLabel")
 rl.Size = UDim2.new(1, -20, 0, 18)
-rl.Position = UDim2.new(0, 10, 0, 52)
+rl.Position = UDim2.new(0, 10, 0, 54)
 rl.BackgroundTransparency = 1
-rl.Text = "Range: " .. Settings.Range .. "m"
+rl.Text = "Range: " .. Range .. "m"
 rl.TextColor3 = Color3.fromRGB(140, 140, 170)
 rl.TextSize = 11; rl.Font = Enum.Font.Gotham
 rl.Parent = f
 
-local statusLbl = Instance.new("TextLabel")
-statusLbl.Size = UDim2.new(1, -20, 0, 18)
-statusLbl.Position = UDim2.new(0, 10, 0, 76)
-statusLbl.BackgroundTransparency = 1
-statusLbl.Text = "● Injected"
-statusLbl.TextColor3 = Color3.fromRGB(50, 255, 100)
-statusLbl.TextSize = 11; statusLbl.Font = Enum.Font.Gotham
-statusLbl.Parent = f
+local sl = Instance.new("TextLabel")
+sl.Size = UDim2.new(1, -20, 0, 18)
+sl.Position = UDim2.new(0, 10, 0, 76)
+sl.BackgroundTransparency = 1
+sl.Text = "● Ready"
+sl.TextColor3 = Color3.fromRGB(50, 255, 100)
+sl.TextSize = 11; sl.Font = Enum.Font.Gotham
+sl.Parent = f
