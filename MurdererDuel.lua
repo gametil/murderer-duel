@@ -150,8 +150,11 @@ RS.RenderStepped:Connect(function()
    end
   end
   
+  -- Aim at nearest valid target via mouse movement (works 1st & 3rd person)
   if best then
-   cam.CFrame=cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position,best.Position),cfg.smooth)
+   local vp=cam:WorldToViewportPoint(best.Position)
+   local mouse=LP:GetMouse()
+   mousemoverel((vp.X-mouse.X)*cfg.smooth,(vp.Y-mouse.Y)*cfg.smooth)
   end
  end)
 end)
