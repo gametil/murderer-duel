@@ -129,19 +129,29 @@ RunS.RenderStepped:Connect(function()
 		if not keep then
 			lockedTarget = nil; lockedName = ""
 			local best, bdist = nil, HUGE
-			local cName = char and char.Name or ""
-			for _, c in chars:GetChildren() do
-				-- Skip self: instance check + name check
-				if c ~= char and c.Name ~= cName then
-					local r = findRootPart(c)
-					if r then
-						local d = (hrp.Position - r.Position).Magnitude
-						if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
+				local cName = char and char.Name or ""
+				-- Scan workspace.Characters (custom folder)
+				for _, c in chars:GetChildren() do
+					if c ~= char and c.Name ~= cName then
+						local r = findRootPart(c)
+						if r then
+							local d = (hrp.Position - r.Position).Magnitude
+							if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
+						end
 					end
 				end
+				-- Also scan Players service (standard Roblox)
+				for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+					if p ~= LP and p.Character then
+						local r = findRootPart(p.Character)
+						if r then
+							local d = (hrp.Position - r.Position).Magnitude
+							if d < settings.range and d < bdist then best, bdist = r, d; lockedName = p.Name end
+						end
+					end
+				end
+				if best then lockedTarget = best; lockedDist = bdist end
 			end
-			if best then lockedTarget = best; lockedDist = bdist end
-		end
 
 		if lockedTarget then
 			local sp, on = cam:WorldToViewportPoint(lockedTarget.Position)
