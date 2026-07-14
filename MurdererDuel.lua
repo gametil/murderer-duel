@@ -5,7 +5,7 @@ local Camera = workspace.CurrentCamera
 local LP = Players.LocalPlayer
 local Mouse = LP:GetMouse()
 
-local Settings = {Aimbot = true, ESP = true, FOV = 200, Smoothness = 0.7}
+local Settings = {Aimbot = true, ESP = true, FOV = 200, Smoothness = 0.7, EspRange = 80}
 Settings._holding = false
 
 -- RightCtrl to aimlock
@@ -83,7 +83,7 @@ local hl = Instance.new("TextLabel")
 hl.Size = UDim2.new(1, -30, 0, 20)
 hl.Position = UDim2.new(0, 15, 0, 108)
 hl.BackgroundTransparency = 1
-hl.Text = "Hold RightCtrl to aimlock"
+hl.Text = "Hold RightCtrl | Range: " .. Settings.EspRange .. "m"
 hl.TextColor3 = Color3.fromRGB(140, 140, 170)
 hl.TextSize = 11; hl.TextXAlignment = Enum.TextXAlignment.Left
 hl.Font = Enum.Font.Gotham; hl.ZIndex = 4; hl.Parent = m
@@ -136,6 +136,7 @@ local function isAlive(plr)
 end
 
 -- Find ONLY the nearest player across the whole game
+-- Only targets within EspRange studs
 local function getNearestPlayer()
     local closest, closestDist = nil, math.huge
     for _, plr in ipairs(Players:GetPlayers()) do
@@ -148,6 +149,7 @@ local function getNearestPlayer()
         -- Distance in 3D world space (not screen)
         local dist3d = (LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and (LP.Character.HumanoidRootPart.Position - root.Position).Magnitude) or math.huge
         
+        if dist3d > Settings.EspRange then continue end
         if dist3d < closestDist then
             closest = plr
             closestDist = dist3d
