@@ -8,6 +8,18 @@ local cfg={range=350,fov=200,smooth=0.15}
 local debugCount=0
 local RP_NAMES={["HumanoidRootPart"]=true,["UpperTorso"]=true,["LowerTorso"]=true,["Torso"]=true,["Root"]=true,["Hip"]=true,["Head"]=true}
 
+-- Per-player character monitor for late joiners
+PS.PlayerAdded:Connect(function(p)
+ p.CharacterAdded:Connect(function(c)
+  delay(0.5,function()
+   if c and c~=LP.Character then
+    local r=rp(c)
+    if r then targets[c]=r end
+   end
+  end)
+ end)
+end)
+
 -- Root part finder (8 fallback names + any BasePart)
 local function rp(m)
  if not m then return nil end
