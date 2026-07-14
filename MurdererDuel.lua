@@ -21,6 +21,11 @@ PS.PlayerAdded:Connect(function(p)
  end)
 end)
 
+-- CharacterAdded listener: when LP changes character (duel start/respawn), rebuild ASAP
+LP.CharacterAdded:Connect(function()
+buildTick=999
+end)
+
 -- Root part finder (8 fallback names + any BasePart)
 local function rp(m)
  if not m then return nil end
@@ -33,7 +38,7 @@ local function rp(m)
 end
 
 -- Target cache + frame counter for rebuild
-local targets,buildTick={},0
+local targets,buildTick,frameSkip={},0,0
 
 local function rebuildTargets()
  local built={}
@@ -110,13 +115,15 @@ RS.RenderStepped:Connect(function()
   local cam=WS.CurrentCamera
   if not cam then return end
   local char=LP.Character
-  if not char then targets={};return end
+  if not char then return end
   local hrp=rp(char)
-  if not hrp then targets={};return end
+  if not hrp then return end
   
-  -- Rebuild every 30 frames (~0.5s) or when empty
+  -- Rebuild every 15 frames (~0.25s); empty-target hot loop prevented by frameSkip
   buildTick=buildTick+1
-  if buildTick>=30 or not next(targets)then rebuildTargets()
+  if frameSkip>0 then frameSkip=frameSkip-1 end
+  if buildTick>=15 or(not next(targets)and frameSkip==0)then rebuildTargets()
+   frameSkip=5
    debugCount=debugCount+1
    if debugCount%5==0 then
     local n=0;for _ in pairs(targets)do n=n+1 end
