@@ -5,7 +5,7 @@ local Camera = workspace.CurrentCamera
 local LP = Players.LocalPlayer
 local Mouse = LP:GetMouse()
 
-local Settings = {Aimbot = true, ESP = true, FOV = 200, Smoothness = 0.7, EspRange = 80}
+local Settings = {Aimbot = true, ESP = true, FOV = 200, Smoothness = 0.7, EspRange = 150}
 Settings._holding = false
 
 -- RightCtrl keybind
