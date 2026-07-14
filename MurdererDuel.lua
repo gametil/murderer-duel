@@ -1,4 +1,4 @@
---[[ Murderer Duel — Aimbot + ESP + Avatar Fix ]]
+--[[ Murderer Duel — Aimbot + ESP + Avatar Diagnostic & Fix ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -16,39 +16,148 @@ Mouse.KeyUp:Connect(function(k)
     if k == "rightcontrol" then Settings._holding = false end
 end)
 
--- Avatar Fix — runs once on inject
-spawn(function()
-    task.wait(1.5)
+--[[ ══════════════════════════════════════════
+     AVATAR DIAGNOSTIC + RENDERING FIX
+     Scans character for broken objects causing
+     white/gray rectangle artifact.
+     ══════════════════════════════════════════ ]]
+
+local function fixAvatar()
     local char = LP.Character
     if not char then return end
-    local n = {acc=0,decal=0,gui=0,hl=0,weld=0}
-    for _, v in ipairs(char:GetDescendants()) do
-        if v:IsA("Accessory") then
-            local h = v:FindFirstChild("Handle")
+    
+    local found = {}
+    
+    local function scan(obj, depth)
+        if depth and depth > 20 then return end
+        local reason = nil
+        
+        if obj:IsA("SurfaceGui") or obj:IsA("BillboardGui") then
+            reason = obj.ClassName .. " on character"
+        elseif obj:IsA("Highlight") or obj:IsA("SelectionBox") then
+            reason = obj.ClassName .. " overlay"
+        elseif obj:IsA("BoxHandleAdornment") then
+            reason = "BoxHandleAdornment"
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            if obj.Texture == "" or obj.Texture == "rbxassetid://0" then
+                reason = obj.ClassName .. " (empty texture)"
+            end
+        elseif obj:IsA("MeshPart") then
+            if obj.MeshId == "" or obj.MeshId:find("rbxassetid://0$") then
+                reason = "MeshPart (broken mesh)"
+            end
+            local s = obj.Size
+            if not obj.Name:match("[Hh]ead") and not obj.Name:match("[Tt]orso")
+            and not obj.Name:match("[Ll]imb") and not obj.Name:match("[Hh]andle") then
+                if s.X > 8 or s.Y > 8 or s.Z > 8 then
+                    reason = "Oversized MeshPart (" .. math.floor(s.X) .. "x" .. math.floor(s.Y) .. "x" .. math.floor(s.Z) .. ")"
+                end
+            end
+        elseif obj:IsA("SpecialMesh") then
+            if obj.MeshId == "" or obj.MeshId == "rbxassetid://0" then
+                reason = "SpecialMesh (empty)"
+            end
+        elseif obj:IsA("Accessory") then
+            local h = obj:FindFirstChild("Handle")
             if h then
                 local m = h:FindFirstChildOfClass("SpecialMesh") or h:FindFirstChildOfClass("MeshPart")
-                if m and (m.MeshId == "" or m.MeshId:find("rbxassetid://0")) then
-                    v:Destroy(); n.acc = n.acc + 1
+                if m and m:IsA("SpecialMesh") and (m.MeshId == "" or m.MeshId == "rbxassetid://0") then
+                    reason = "Accessory (broken SpecialMesh)"
+                elseif m and m:IsA("MeshPart") then
+                    if m.MeshId == "" or m.MeshId:find("rbxassetid://0$") then
+                        reason = "Accessory (broken MeshPart)"
+                    end
+                    local s = m.Size
+                    if math.abs(s.X - s.Y) < 0.5 and math.abs(s.Y - s.Z) < 0.5 and s.X > 2 then
+                        reason = "Accessory (cube artifact)"
+                    end
+                end
+                if h:IsA("Part") and (h.Size.X > 5 or h.Size.Y > 5 or h.Size.Z > 5) then
+                    reason = "Accessory (oversized Handle)"
+                end
+            end
+        elseif obj:IsA("WeldConstraint") and (not obj.Part0 or not obj.Part1) then
+            reason = "WeldConstraint (orphaned)"
+        elseif obj:IsA("Motor6D") and (not obj.Part0 or not obj.Part1) then
+            reason = "Motor6D (orphaned)"
+        elseif obj:IsA("ScreenGui") then
+            reason = "ScreenGui on character"
+        elseif obj:IsA("ImageLabel") or obj:IsA("Frame") or obj:IsA("UIStroke") then
+            reason = obj.ClassName .. " on character"
+        elseif obj:IsA("ViewportFrame") then
+            reason = "ViewportFrame on character"
+        elseif obj:IsA("Part") and not obj:FindFirstAncestorOfClass("Accessory") then
+            local vital = {Head=true, Torso=true, UpperTorso=true, LowerTorso=true, HumanoidRootPart=true, Handle=true}
+            if not vital[obj.Name] then
+                if obj.Size.X > 4 or obj.Size.Y > 4 or obj.Size.Z > 4 then
+                    reason = "Oversized Part attached (" .. obj.Name .. ")"
                 end
             end
         end
-        if v:IsA("MeshPart") and v.Parent and v.Parent:IsA("Accessory") then
-            if math.abs(v.Size.X - v.Size.Y) < 0.5 and math.abs(v.Size.Y - v.Size.Z) < 0.5 then
-                v.Parent:Destroy(); n.acc = n.acc + 1
-            end
-        end
-        if v:IsA("Part") and v.Parent ~= char and v.Size.X > 8 then v:Destroy(); n.acc = n.acc + 1 end
-        if v:IsA("Decal") and (v.Texture == "" or v.Texture == "rbxassetid://0") then v:Destroy(); n.decal = n.decal + 1 end
-        if v:IsA("SurfaceGui") or v:IsA("BillboardGui") then v:Destroy(); n.gui = n.gui + 1 end
-        if v:IsA("Highlight") then v:Destroy(); n.hl = n.hl + 1 end
-        if v:IsA("WeldConstraint") and (not v.Part0 or not v.Part1) then v:Destroy(); n.weld = n.weld + 1 end
+        
+        if reason then table.insert(found, {obj = obj, reason = reason}) end
+        for _, c in ipairs(obj:GetChildren()) do scan(c, (depth or 0) + 1) end
     end
+    
+    scan(char, 0)
+    
+    local n = {acc=0,decal=0,gui=0,hl=0,part=0,weld=0}
+    for _, item in ipairs(found) do
+        local o = item.obj
+        if o:IsA("Accessory") then o:Destroy(); n.acc = n.acc + 1
+        elseif o:IsA("SurfaceGui") or o:IsA("BillboardGui") or o:IsA("ScreenGui") then o:Destroy(); n.gui = n.gui + 1
+        elseif o:IsA("Highlight") or o:IsA("SelectionBox") or o:IsA("BoxHandleAdornment") then o:Destroy(); n.hl = n.hl + 1
+        elseif o:IsA("Decal") or o:IsA("Texture") then o:Destroy(); n.decal = n.decal + 1
+        elseif o:IsA("ImageLabel") or o:IsA("Frame") or o:IsA("UIStroke") or o:IsA("ViewportFrame") then o:Destroy(); n.gui = n.gui + 1
+        elseif o:IsA("MeshPart") or o:IsA("SpecialMesh") then
+            local a = o:FindFirstAncestorOfClass("Accessory")
+            if a then a:Destroy(); n.acc = n.acc + 1 else o:Destroy(); n.decal = n.decal + 1 end
+        elseif o:IsA("Part") then
+            local a = o:FindFirstAncestorOfClass("Accessory")
+            if a then a:Destroy(); n.acc = n.acc + 1 else o:Destroy(); n.part = n.part + 1 end
+        elseif o:IsA("WeldConstraint") or o:IsA("Motor6D") then o:Destroy(); n.weld = n.weld + 1 end
+    end
+    
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum then pcall(function() hum:BuildRigFromAttachments() end) end
-    warn("[[ FIX ]] Removed: " .. n.acc .. " acc, " .. n.decal .. " decal, " .. n.gui .. " gui, " .. n.hl .. " hl, " .. n.weld .. " weld")
+    
+    local total = n.acc + n.decal + n.gui + n.hl + n.part + n.weld
+    if total > 0 then
+        warn("[[ FIX ]] Removed " .. total .. " faulty object(s): " .. n.acc .. " acc, " .. n.decal .. " decal, " .. n.gui .. " gui, " .. n.hl .. " hl")
+        warn("[[ FIX ]] Root cause: unreviewed accessory mesh → Roblox renders fallback white/gray rectangle")
+    end
+end
+
+-- Run avatar fix after character loads
+spawn(function()
+    task.wait(1.5)
+    fixAvatar()
+    -- Also watch for recreated artifacts
+    spawn(function()
+        while task.wait(0.5) do
+            local char = LP.Character
+            if not char then continue end
+            for _, v in ipairs(char:GetDescendants()) do
+                if v:IsA("SurfaceGui") or v:IsA("BillboardGui") or v:IsA("Highlight") then
+                    v:Destroy()
+                end
+                if v:IsA("Accessory") then
+                    local h = v:FindFirstChild("Handle")
+                    if h then
+                        local m = h:FindFirstChildOfClass("SpecialMesh")
+                        if m and (m.MeshId == "" or m.MeshId == "rbxassetid://0") then
+                            v:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    end)
 end)
 
--- UI
+--[[ ══════════════════════════════════════════
+     UI
+     ══════════════════════════════════════════ ]]
 local s = Instance.new("ScreenGui"); s.Name = "MDUEL_UI"; s.ResetOnSpawn = false
 local m = Instance.new("Frame")
 m.Size = UDim2.new(0, 220, 0, 160)
@@ -144,7 +253,9 @@ spawn(function()
 end)
 s.Parent = LP:WaitForChild("PlayerGui")
 
--- Core
+--[[ ══════════════════════════════════════════
+     AIMBOT + ESP CORE
+     ══════════════════════════════════════════ ]]
 local function isAlive(plr)
     local pchar = plr.Character
     if not pchar then return false end
@@ -156,7 +267,7 @@ local function getNearest()
     local closest, closestDist = nil, math.huge
     local myChar = LP.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return nil, 0 end
+    if not myRoot then return nil end
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LP then continue end
         if not isAlive(plr) then continue end
@@ -167,7 +278,7 @@ local function getNearest()
         if d > Settings.EspRange then continue end
         if d < closestDist then closest, closestDist = plr, d end
     end
-    return closest, closestDist
+    return closest
 end
 
 -- ESP objects (created once, reused)
@@ -180,7 +291,6 @@ local function drawESP(plr, color)
         end
         return
     end
-    -- Init once
     if not espBox then
         espBox = Drawing.new("Square"); espName = Drawing.new("Text")
         espLine = Drawing.new("Line"); hudBg = Drawing.new("Square"); hudNm = Drawing.new("Text")
@@ -207,7 +317,7 @@ local function drawESP(plr, color)
     espName.Color = color; espName.Center = true; espName.Outline = true; espName.Visible = true
     espLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
     espLine.To = Vector2.new(rp.X, rp.Y); espLine.Color = color; espLine.Thickness = 1; espLine.Transparency = 0.4; espLine.Visible = true
-    -- Center HUD below crosshair
+    -- Center HUD
     local cx, cy = Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2
     hudBg.Size = Vector2.new(180, 24); hudBg.Position = Vector2.new(cx - 90, cy + 30)
     hudBg.Color = Color3.new(0, 0, 0); hudBg.Filled = true; hudBg.Transparency = 0.6; hudBg.Visible = true
@@ -215,7 +325,6 @@ local function drawESP(plr, color)
     hudNm.Position = Vector2.new(cx, cy + 42); hudNm.Color = color; hudNm.Center = true; hudNm.Outline = true; hudNm.Visible = true
 end
 
--- Aim
 local function doAim(plr)
     if not plr then return end
     local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
@@ -227,16 +336,13 @@ local function doAim(plr)
     pcall(function() mousemoverel(sx - Mouse.X, sy - Mouse.Y) end)
 end
 
--- Main loop (throttled to reduce lag)
-local frameCount = 0
+-- Main loop (throttled 30fps)
+local fc = 0
 RunService.RenderStepped:Connect(function()
-    frameCount = frameCount + 1
-    if frameCount % 2 == 0 then return end  -- skip every other frame = ~30fps
-    
+    fc = fc + 1
+    if fc % 2 == 0 then return end
     local nearest = getNearest()
     local color = Color3.new(1, 0.3, 0.3)
-    
-    -- Safe color calc — won't crash if character nil
     if nearest then
         local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         local pRoot = nearest.Character and nearest.Character:FindFirstChild("HumanoidRootPart")
@@ -246,12 +352,8 @@ RunService.RenderStepped:Connect(function()
             color = Color3.fromHSV(hue, 0.9, 0.9)
         end
     end
-    
     drawESP(nearest, color)
-    
-    if Settings.Aimbot and Settings._holding and nearest then
-        doAim(nearest)
-    end
+    if Settings.Aimbot and Settings._holding and nearest then doAim(nearest) end
 end)
 
-warn("[[ MDUEL ]] Loaded | Hold RightCtrl to aim")
+warn("[[ MDUEL ]] Loaded | Aimbot + ESP + Avatar Fix | Hold RightCtrl")
