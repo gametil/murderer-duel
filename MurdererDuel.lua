@@ -94,13 +94,30 @@ RunService.RenderStepped:Connect(function()
                     
                     if FOV == 0 or dFromCenter <= FOV then
                         if Mouse then
-                            pcall(function()
-                                mousemoverel((sp.X - Mouse.X) * 0.7, (sp.Y - Mouse.Y) * 0.7)
-                            end)
-                            if fovC then fovC.Color = Color3.fromRGB(0, 255, 0) end -- green = locked
+                            -- Debug: log first attempt
+                            if not Mouse.X then add("FAIL: Mouse has no X") end
+                            local dx = (sp.X - Mouse.X) * 0.7
+                            local dy = (sp.Y - Mouse.Y) * 0.7
+                            if dx ~= 0 or dy ~= 0 then
+                                local aimOk = false
+                                local errMsg = ""
+                                pcall(function() mousemoverel(dx, dy); aimOk = true end)
+                                pcall(function()
+                                    if not aimOk then mouseMoveRelative(dx, dy); aimOk = true end
+                                end)
+                                pcall(function()
+                                    if not aimOk then
+                                        -- Absolute move fallback
+                                        mousemoveabs(Mouse.X + dx, Mouse.Y + dy)
+                                        aimOk = true
+                                    end
+                                end)
+                                if not aimOk and hadTarget then add("AIM FAIL: all methods") end
+                            end
+                            if fovC then fovC.Color = Color3.fromRGB(0, 255, 0) end
                         end
                     else
-                        if fovC then fovC.Color = Color3.fromRGB(255, 255, 255) end -- white = target outside
+                        if fovC then fovC.Color = Color3.fromRGB(255, 255, 255) end
                     end
                     
                     -- ESP
