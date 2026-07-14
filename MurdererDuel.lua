@@ -55,6 +55,16 @@ local function rebuildTargets()
   end
  end
  
+ -- Source 4: Any HumanoidRootPart in workspace (deep, catches nested chars)
+ for _,p in ipairs(WS:GetDescendants())do
+  if p.Name=="HumanoidRootPart" and p:IsA("BasePart")then
+   local m=p.Parent
+   if m and m:IsA("Model")and m~=selfChar and m.Name~=selfName and not built[m]then
+    built[m]=p
+   end
+  end
+ end
+ 
  targets=built
  buildTick=0
 end
@@ -78,8 +88,8 @@ RS.RenderStepped:Connect(function()
   local best,bd=nil,1/0
   
   for m,r in pairs(targets)do
-   if not m.Parent then targets[m]=nil
-   elseif not r.Parent then targets[m]=nil
+   if not m.Parent or not r.Parent then targets[m]=nil
+   elseif m==char then targets[m]=nil
    else
     local d=(hp-r.Position).Magnitude
     if d<=cfg.range and d<bd then
