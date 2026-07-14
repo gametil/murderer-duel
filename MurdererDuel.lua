@@ -7,7 +7,7 @@ local PS=game:GetService("Players")
 local cfg={range=350,fov=200,smooth=0.15}
 local debugCount=0
 local RP_NAMES={["HumanoidRootPart"]=true,["UpperTorso"]=true,["LowerTorso"]=true,["Torso"]=true,["Root"]=true,["Hip"]=true,["Head"]=true}
-local sCount={[1]=0,[2]=0,[3]=0,[4]=0,[5]=0}
+local sCount={[1]=0,[2]=0,[3]=0,[4]=0,[5]=0,[6]=0}
 
 -- Per-player character monitor for late joiners
 PS.PlayerAdded:Connect(function(p)
@@ -39,19 +39,13 @@ local function rebuildTargets()
  local built={}
  local selfChar=LP.Character
  local selfName=LP.Name
- for i=1,5 do sCount[i]=0 end
- 
- -- Helper: try to add a model to built
- local function addModel(m,r)
-  if built[m]then return end
-  built[m]=r
- end
+ for i=1,6 do sCount[i]=0 end
  
  -- Source 1: workspace direct children (standard player placement)
  for _,c in ipairs(WS:GetChildren())do
   if c:IsA("Model")and c~=selfChar and c.Name~=selfName then
    local r=rp(c)
-   if r then addModel(c,r);sCount[1]=sCount[1]+1 end
+   if r then built[c]=r;sCount[1]=sCount[1]+1 end
   end
  end
  
@@ -61,7 +55,7 @@ local function rebuildTargets()
   for _,c in ipairs(chars:GetChildren())do
    if c:IsA("Model")and c~=selfChar and c.Name~=selfName then
     local r=rp(c)
-    if r then addModel(c,r);sCount[2]=sCount[2]+1 end
+    if r then built[c]=r;sCount[2]=sCount[2]+1 end
    end
   end
  end
@@ -72,7 +66,7 @@ local function rebuildTargets()
    local c=p.Character or WS:FindFirstChild(p.Name)or WS:FindFirstChild(p.DisplayName)
    if c and c~=selfChar and c.Name~=selfName and not built[c]then
     local r=rp(c)
-    if r then addModel(c,r);sCount[3]=sCount[3]+1 end
+    if r then built[c]=r;sCount[3]=sCount[3]+1 end
    end
   end
  end
@@ -99,6 +93,17 @@ local function rebuildTargets()
   end
  end
  
+ -- Source 6: Any Humanoid in workspace (ultimate catch-all)
+ for _,p in ipairs(WS:GetDescendants())do
+  if p:IsA("Humanoid")then
+   local m=p.Parent
+   if m and m:IsA("Model")and m~=selfChar and m.Name~=selfName and not built[m]then
+    local r=rp(m)
+    if r then built[m]=r;sCount[6]=sCount[6]+1 end
+   end
+  end
+ end
+ 
  targets=built
  buildTick=0
 end
@@ -120,7 +125,7 @@ RS.RenderStepped:Connect(function()
    debugCount=debugCount+1
    if debugCount%5==0 then
     local n=0;for _ in pairs(targets)do n=n+1 end
-    warn("MDUEL: "..n.." targets (s1:"..sCount[1].." s2:"..sCount[2].." s3:"..sCount[3].." s4:"..sCount[4].." s5:"..sCount[5]..")")
+    warn("MDUEL: "..n.." targets (s1:"..sCount[1].." s2:"..sCount[2].." s3:"..sCount[3].." s4:"..sCount[4].." s5:"..sCount[5].." s6:"..sCount[6]..")")
    end
   end
   
