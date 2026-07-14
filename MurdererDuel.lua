@@ -169,7 +169,7 @@ RunS.RenderStepped:Connect(function()
 			local myId = LP.UserId
 			for _, c in chars:GetChildren() do
 				local cUid = getUserId(c)
-				if cUid and tonumber(cUid) == myId then -- skip self via userId
+				if c == char or (cUid and tonumber(cUid) == myId) then -- skip self via char or userId
 				else
 					local r = findRootPart(c)
 					local h = findHumanoid(c)
