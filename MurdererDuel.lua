@@ -1,184 +1,133 @@
-
---[[ Murderer Duel — Aimbot + ESP + Animated UI ]]
+--[[ Murderer Duel — Aimbot + ESP (target nearest only) ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LP = Players.LocalPlayer
 local Mouse = LP:GetMouse()
 
-local Settings = {Aimbot = true, ESP = true, FOV = 120, Smoothness = 0.8}
-local aimKey = "RightControl"  -- hold this for aimlock
+local Settings = {Aimbot = true, ESP = true, FOV = 200, Smoothness = 0.7}
+Settings._holding = false
 
--- Keyboard toggle (more reliable than MB4)
+-- RightCtrl to aimlock
 Mouse.KeyDown:Connect(function(k)
-    if k == aimKey then
-        Settings._holding = true
-    end
+    if k == "rightcontrol" then Settings._holding = true end
 end)
 Mouse.KeyUp:Connect(function(k)
-    if k == aimKey then
-        Settings._holding = false
-    end
+    if k == "rightcontrol" then Settings._holding = false end
 end)
 
 -- UI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MDUEL_UI"
-ScreenGui.ResetOnSpawn = false
-local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 220, 0, 180)
-Main.Position = UDim2.new(0, 20, 0, 300)
-Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-Main.BackgroundTransparency = 0.15
-Main.BorderSizePixel = 0
-Main.Active = true
-Main.Draggable = true
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = Main
-local Border = Instance.new("Frame")
-Border.Size = UDim2.new(1, 0, 0, 2)
-Border.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-Border.BorderSizePixel = 0
-Border.ZIndex = 3
-Border.Parent = Main
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Position = UDim2.new(0, 0, 0, 4)
-Title.BackgroundTransparency = 1
-Title.Text = "✦ MDUEL"
-Title.TextColor3 = Color3.fromRGB(220, 220, 255)
-Title.TextSize = 18
-Title.Font = Enum.Font.GothamBold
-Title.ZIndex = 4
-Title.Parent = Main
-local MinBtn = Instance.new("TextButton")
-MinBtn.Size = UDim2.new(0, 24, 0, 24)
-MinBtn.Position = UDim2.new(1, -28, 0, 4)
-MinBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-MinBtn.Text = "─"
-MinBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
-MinBtn.TextSize = 16
-MinBtn.BorderSizePixel = 0
-MinBtn.ZIndex = 5
-local MinBtnCorner = Instance.new("UICorner")
-MinBtnCorner.CornerRadius = UDim.new(0, 4)
-MinBtnCorner.Parent = MinBtn
-MinBtn.Parent = Main
-
-local function makeToggle(name, default, yPos)
+local s = Instance.new("ScreenGui")
+s.Name = "MDUEL_UI"; s.ResetOnSpawn = false
+local m = Instance.new("Frame")
+m.Size = UDim2.new(0, 220, 0, 160)
+m.Position = UDim2.new(0, 20, 0, 300)
+m.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+m.BackgroundTransparency = 0.15; m.BorderSizePixel = 0
+m.Active = true; m.Draggable = true
+Instance.new("UICorner").CornerRadius = UDim.new(0, 8); m.Parent = s
+local b = Instance.new("Frame")
+b.Size = UDim2.new(1, 0, 0, 2)
+b.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+b.BorderSizePixel = 0; b.ZIndex = 3; b.Parent = m
+local t = Instance.new("TextLabel")
+t.Size = UDim2.new(1, 0, 0, 30)
+t.Position = UDim2.new(0, 0, 0, 4)
+t.BackgroundTransparency = 1
+t.Text = "✦ MDUEL"; t.TextColor3 = Color3.fromRGB(220, 220, 255)
+t.TextSize = 18; t.Font = Enum.Font.GothamBold; t.ZIndex = 4; t.Parent = m
+local mn = Instance.new("TextButton")
+mn.Size = UDim2.new(0, 24, 0, 24)
+mn.Position = UDim2.new(1, -28, 0, 4)
+mn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+mn.Text = "─"; mn.TextColor3 = Color3.fromRGB(200, 200, 255)
+mn.TextSize = 16; mn.BorderSizePixel = 0; mn.ZIndex = 5
+Instance.new("UICorner").CornerRadius = UDim.new(0, 4); mn.Parent = m
+local function mkTog(name, def, y)
     local bg = Instance.new("Frame")
     bg.Size = UDim2.new(0, 190, 0, 28)
-    bg.Position = UDim2.new(0, 15, 0, yPos)
+    bg.Position = UDim2.new(0, 15, 0, y)
     bg.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    bg.BorderSizePixel = 0
-    bg.ZIndex = 4
-    local bgCorner = Instance.new("UICorner")
-    bgCorner.CornerRadius = UDim.new(0, 6)
-    bgCorner.Parent = bg
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0, 120, 1, 0)
-    label.Position = UDim2.new(0, 10, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = name
-    label.TextColor3 = Color3.fromRGB(180, 180, 200)
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Font = Enum.Font.Gotham
-    label.ZIndex = 5
-    label.Parent = bg
-    local toggle = Instance.new("TextButton")
-    toggle.Size = UDim2.new(0, 45, 0, 20)
-    toggle.Position = UDim2.new(1, -55, 0, 4)
-    toggle.BackgroundColor3 = default and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(60, 60, 70)
-    toggle.Text = default and "ON" or "OFF"
-    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggle.TextSize = 11
-    toggle.BorderSizePixel = 0
-    toggle.Font = Enum.Font.GothamBold
-    toggle.ZIndex = 5
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 4)
-    toggleCorner.Parent = toggle
-    toggle.MouseButton1Click:Connect(function()
+    bg.BorderSizePixel = 0; bg.ZIndex = 4
+    Instance.new("UICorner").CornerRadius = UDim.new(0, 6); bg.Parent = m
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0, 120, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1; lbl.Text = name
+    lbl.TextColor3 = Color3.fromRGB(180, 180, 200)
+    lbl.TextSize = 14; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Font = Enum.Font.Gotham; lbl.ZIndex = 5; lbl.Parent = bg
+    local tog = Instance.new("TextButton")
+    tog.Size = UDim2.new(0, 45, 0, 20)
+    tog.Position = UDim2.new(1, -55, 0, 4)
+    tog.BackgroundColor3 = def and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(60, 60, 70)
+    tog.Text = def and "ON" or "OFF"
+    tog.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tog.TextSize = 11; tog.BorderSizePixel = 0; tog.Font = Enum.Font.GothamBold; tog.ZIndex = 5
+    Instance.new("UICorner").CornerRadius = UDim.new(0, 4); tog.Parent = bg
+    tog.MouseButton1Click:Connect(function()
         if name == "Aimbot" then
             Settings.Aimbot = not Settings.Aimbot
-            toggle.BackgroundColor3 = Settings.Aimbot and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(60, 60, 70)
-            toggle.Text = Settings.Aimbot and "ON" or "OFF"
+            tog.BackgroundColor3 = Settings.Aimbot and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(60, 60, 70)
+            tog.Text = Settings.Aimbot and "ON" or "OFF"
         elseif name == "ESP" then
             Settings.ESP = not Settings.ESP
-            toggle.BackgroundColor3 = Settings.ESP and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(60, 60, 70)
-            toggle.Text = Settings.ESP and "ON" or "OFF"
+            tog.BackgroundColor3 = Settings.ESP and Color3.fromRGB(50, 200, 100) or Color3.fromRGB(60, 60, 70)
+            tog.Text = Settings.ESP and "ON" or "OFF"
         end
     end)
-    toggle.Parent = bg
-    bg.Parent = Main
 end
-makeToggle("Aimbot", true, 40)
-makeToggle("ESP", true, 75)
-
-local HoldLabel = Instance.new("TextLabel")
-HoldLabel.Size = UDim2.new(1, -30, 0, 20)
-HoldLabel.Position = UDim2.new(0, 15, 0, 108)
-HoldLabel.BackgroundTransparency = 1
-HoldLabel.Text = "Hold RightCtrl to aimlock"
-HoldLabel.TextColor3 = Color3.fromRGB(140, 140, 170)
-HoldLabel.TextSize = 11
-HoldLabel.TextXAlignment = Enum.TextXAlignment.Left
-HoldLabel.Font = Enum.Font.Gotham
-HoldLabel.ZIndex = 4
-HoldLabel.Parent = Main
-local StatusBar = Instance.new("Frame")
-StatusBar.Size = UDim2.new(1, 0, 0, 24)
-StatusBar.Position = UDim2.new(0, 0, 1, -24)
-StatusBar.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-StatusBar.BorderSizePixel = 0
-StatusBar.ZIndex = 4
-local StatusBarCorner = Instance.new("UICorner")
-StatusBarCorner.CornerRadius = UDim.new(0, 8)
-StatusBarCorner.Parent = StatusBar
-StatusBar.Parent = Main
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, -10, 1, 0)
-StatusLabel.Position = UDim2.new(0, 10, 0, 0)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "● Injected"
-StatusLabel.TextColor3 = Color3.fromRGB(50, 255, 100)
-StatusLabel.TextSize = 11
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.ZIndex = 5
-StatusLabel.Parent = StatusBar
-
+mkTog("Aimbot", true, 40)
+mkTog("ESP", true, 75)
+local hl = Instance.new("TextLabel")
+hl.Size = UDim2.new(1, -30, 0, 20)
+hl.Position = UDim2.new(0, 15, 0, 108)
+hl.BackgroundTransparency = 1
+hl.Text = "Hold RightCtrl to aimlock"
+hl.TextColor3 = Color3.fromRGB(140, 140, 170)
+hl.TextSize = 11; hl.TextXAlignment = Enum.TextXAlignment.Left
+hl.Font = Enum.Font.Gotham; hl.ZIndex = 4; hl.Parent = m
+local st = Instance.new("Frame")
+st.Size = UDim2.new(1, 0, 0, 24)
+st.Position = UDim2.new(0, 0, 1, -24)
+st.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+st.BorderSizePixel = 0; st.ZIndex = 4
+Instance.new("UICorner").CornerRadius = UDim.new(0, 8); st.Parent = m
+local sl = Instance.new("TextLabel")
+sl.Size = UDim2.new(1, -10, 1, 0)
+sl.Position = UDim2.new(0, 10, 0, 0)
+sl.BackgroundTransparency = 1; sl.Text = "● Injected"
+sl.TextColor3 = Color3.fromRGB(50, 255, 100); sl.TextSize = 11
+sl.TextXAlignment = Enum.TextXAlignment.Left; sl.Font = Enum.Font.Gotham; sl.ZIndex = 5; sl.Parent = st
 local minimized = false
-MinBtn.MouseButton1Click:Connect(function()
+mn.MouseButton1Click:Connect(function()
     minimized = not minimized
     if minimized then
-        Main:TweenSize(UDim2.new(0, 40, 0, 40), "Out", "Quad", 0.3, true)
-        Title.Visible = false
-        for _, v in ipairs(Main:GetChildren()) do
-            if v:IsA("Frame") and v ~= Border then v.Visible = false end
+        m:TweenSize(UDim2.new(0, 40, 0, 40), "Out", "Quad", 0.3, true)
+        t.Visible = false
+        for _, v in ipairs(m:GetChildren()) do
+            if v:IsA("Frame") and v ~= b then v.Visible = false end
         end
-        MinBtn.Text = "◉"
+        mn.Text = "◉"
     else
-        Main:TweenSize(UDim2.new(0, 220, 0, 180), "Out", "Quad", 0.3, true)
-        Title.Visible = true
-        for _, v in ipairs(Main:GetChildren()) do
-            if v:IsA("Frame") and v ~= Border then v.Visible = true end
+        m:TweenSize(UDim2.new(0, 220, 0, 160), "Out", "Quad", 0.3, true)
+        t.Visible = true
+        for _, v in ipairs(m:GetChildren()) do
+            if v:IsA("Frame") and v ~= b then v.Visible = true end
         end
-        MinBtn.Text = "─"
+        mn.Text = "─"
     end
 end)
 spawn(function()
     local hue = 0
     while task.wait(0.05) do
         hue = (hue + 0.005) % 1
-        Border.BackgroundColor3 = Color3.fromHSV(hue, 0.8, 0.8)
+        b.BackgroundColor3 = Color3.fromHSV(hue, 0.8, 0.8)
     end
 end)
-ScreenGui.Parent = LP:WaitForChild("PlayerGui")
+s.Parent = LP:WaitForChild("PlayerGui")
 
--- Core functions
+-- Core
 local function isAlive(plr)
     local char = plr.Character
     if not char then return false end
@@ -186,113 +135,104 @@ local function isAlive(plr)
     return hum and hum.Health > 0
 end
 
-local function getTarget()
+-- Find ONLY the nearest player across the whole game
+local function getNearestPlayer()
     local closest, closestDist = nil, math.huge
-    local cx, cy = Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LP then continue end
         if not isAlive(plr) then continue end
         local char = plr.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
         if not root then continue end
-        local vec, onScreen = Camera:WorldToViewportPoint(root.Position)
-        if not onScreen then continue end
-        local dist = math.sqrt((vec.X - cx) ^ 2 + (vec.Y - cy) ^ 2)
-        if dist > Settings.FOV then continue end
-        if dist < closestDist then closest, closestDist = plr, dist end
+        
+        -- Distance in 3D world space (not screen)
+        local dist3d = (LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and (LP.Character.HumanoidRootPart.Position - root.Position).Magnitude) or math.huge
+        
+        if dist3d < closestDist then
+            closest = plr
+            closestDist = dist3d
+        end
     end
-    return closest
+    return closest, closestDist
 end
 
--- ESP
-local ESP = {}
-local function updateESP()
-    for _, v in pairs(ESP) do
+-- ESP for nearest player ONLY
+local esps = {}
+local function drawESP(plr, color)
+    -- Clean old
+    for _, v in pairs(esps) do
         if v.Box then v.Box.Visible = false end
         if v.Name then v.Name.Visible = false end
         if v.Line then v.Line.Visible = false end
     end
-    ESP = {}
-    if not Settings.ESP then return end
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LP then continue end
-        if not isAlive(plr) then continue end
-        local char = plr.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        local head = char and char:FindFirstChild("Head")
-        if not root or not head then continue end
-        local rp, on = Camera:WorldToViewportPoint(root.Position)
-        local hp = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-        if not on then continue end
-        local bh = math.abs(rp.Y - hp.Y) * 2
-        local bw = bh * 0.6
-        local box = Drawing.new("Square")
-        box.Size = Vector2.new(bw, bh)
-        box.Position = Vector2.new(rp.X - bw / 2, rp.Y - bh / 2)
-        box.Color = Color3.new(1, 1, 1)
-        box.Thickness = 2; box.Filled = false; box.Visible = true
-        local nm = Drawing.new("Text")
-        nm.Text = plr.Name
-        nm.Size = 16; nm.Position = Vector2.new(rp.X, rp.Y - bh / 2 - 20)
-        nm.Color = Color3.new(1, 1, 1); nm.Center = true; nm.Outline = true; nm.Visible = true
-        local ln = Drawing.new("Line")
-        ln.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-        ln.To = Vector2.new(rp.X, rp.Y)
-        ln.Color = Color3.new(1, 1, 1); ln.Thickness = 1; ln.Transparency = 0.4; ln.Visible = true
-        ESP[plr] = {Box = box, Name = nm, Line = ln}
-    end
+    esps = {}
+    if not Settings.ESP or not plr then return end
+    
+    local char = plr.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local head = char and char:FindFirstChild("Head")
+    if not root or not head then return end
+    
+    local rp, on = Camera:WorldToViewportPoint(root.Position)
+    local hp = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+    if not on then return end
+    
+    local bh = math.abs(rp.Y - hp.Y) * 2
+    local bw = bh * 0.6
+    
+    local box = Drawing.new("Square")
+    box.Size = Vector2.new(bw, bh)
+    box.Position = Vector2.new(rp.X - bw / 2, rp.Y - bh / 2)
+    box.Color = color; box.Thickness = 2; box.Filled = false; box.Visible = true
+    
+    local nm = Drawing.new("Text")
+    nm.Text = plr.Name .. " [" .. math.floor((Camera.CFrame.Position - char.HumanoidRootPart.Position).Magnitude) .. "m]"
+    nm.Size = 16; nm.Position = Vector2.new(rp.X, rp.Y - bh / 2 - 20)
+    nm.Color = color; nm.Center = true; nm.Outline = true; nm.Visible = true
+    
+    local ln = Drawing.new("Line")
+    ln.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+    ln.To = Vector2.new(rp.X, rp.Y)
+    ln.Color = color; ln.Thickness = 1; ln.Transparency = 0.4; ln.Visible = true
+    
+    esps[1] = {Box = box, Name = nm, Line = ln}
 end
 
--- Aimbot - try both methods
-local function aimbotMethod(target)
-    local root = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
+-- Aim at nearest player
+local function doAimbot(plr)
+    if not plr then return end
+    local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
     
     local tp = Camera:WorldToViewportPoint(root.Position)
-    if tp.Z < 0 then return false end
+    if tp.Z < 0 then return end
     
-    local tx, ty = tp.X, tp.Y
-    if tx == Mouse.X and ty == Mouse.Y then return true end
+    local sx = Mouse.X + (tp.X - Mouse.X) * Settings.Smoothness
+    local sy = Mouse.Y + (tp.Y - Mouse.Y) * Settings.Smoothness
     
-    local sx = Mouse.X + (tx - Mouse.X) * Settings.Smoothness
-    local sy = Mouse.Y + (ty - Mouse.Y) * Settings.Smoothness
-    
-    -- Method 1: mousemoverel (most executors)
-    local dx, dy = sx - Mouse.X, sy - Mouse.Y
-    pcall(function() mousemoverel(dx, dy) end)
-    
-    return true
+    pcall(function() mousemoverel(sx - Mouse.X, sy - Mouse.Y) end)
 end
 
--- Key detector
-Settings._holding = false
-Mouse.KeyDown:Connect(function(k)
-    if k == "rightcontrol" then
-        Settings._holding = true
-        warn("[AIMBOT] Holding - aiming active")
-    end
-end)
-Mouse.KeyUp:Connect(function(k)
-    if k == "rightcontrol" then
-        Settings._holding = false
-    end
-end)
-
--- Main loop
+-- Main
 RunService.RenderStepped:Connect(function()
-    local success, err = pcall(function()
-        updateESP()
-        if not Settings.Aimbot then return end
-        if not Settings._holding then return end
+    pcall(function()
+        local nearest, dist = getNearestPlayer()
         
-        local target = getTarget()
-        if target then
-            aimbotMethod(target)
+        -- ESP - nearest only with color
+        local color = Color3.new(1, 0.3, 0.3) -- red = enemy
+        if nearest and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            local distVal = (LP.Character.HumanoidRootPart.Position - nearest.Character.HumanoidRootPart.Position).Magnitude
+            -- Color by distance: red (close) -> yellow -> green (far)
+            local hue = math.clamp(distVal / 150, 0, 1) * 0.3
+            color = Color3.fromHSV(hue, 0.9, 0.9)
+        end
+        drawESP(nearest, color)
+        
+        -- Aimbot on nearest
+        if Settings.Aimbot and Settings._holding and nearest then
+            doAimbot(nearest)
         end
     end)
-    if not success then
-        -- Silent fail on RenderStepped errors
-    end
 end)
 
-warn("[[ MDUEL ]] Loaded | Hold RightCtrl to aimlock")
+warn("[[ MDUEL ]] Loaded | Targets NEAREST player only | Hold RightCtrl")
