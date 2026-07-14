@@ -64,7 +64,7 @@ RunS.RenderStepped:Connect(function()
 			lockedTarget = nil; lockedName = ""
 			local best, bdist = nil, math.huge
 			for _, c in chars:GetChildren() do
-				if c == char then end -- skip self
+				if c ~= char then
 				local r = c:FindFirstChild("HumanoidRootPart")
 				local h = c:FindFirstChildOfClass("Humanoid")
 				if r and h and h.Health > 0 then
@@ -79,7 +79,8 @@ RunS.RenderStepped:Connect(function()
 						if d < Range and d < bdist then best, bdist = r, d; lockedName = c.Name end
 					end
 				end
-			end
+			end -- end if c~=char
+			end -- end for
 			if best then lockedTarget = best; lockedDist = bdist end
 		end
 
