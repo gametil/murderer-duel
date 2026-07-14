@@ -1,1 +1,1 @@
-loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/gametil/murderer-duel/main/MDUEL_Ultimate.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/gametil/murderer-duel/main/MDUEL_Ultimate.lua"))()

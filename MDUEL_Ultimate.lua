@@ -80,10 +80,23 @@ local function getTarget()
  return best
 end
 
--- Silent aim via __namecall (via getfenv for Ketamine compat)
+-- Silent aim via Mouse.Hit/Target + Raycast __namecall (via getfenv)
 local env=getfenv()
 local hmm=env.hookmetamethod
 local gnm=env.getnamecallmethod
+
+-- Mouse.Hit/Target silent aim (Mitka1337 method)
+if cfg.silent and hmm then
+ local Mouse=LP:GetMouse()
+ local oldIdx
+ oldIdx=hmm(game,"__index",function(s,i)
+  if s==Mouse and(i=="Hit"or i=="Target")then
+   local t=getTarget()
+   if t then return i=="Hit"and t.CFrame or t end
+  end
+  return oldIdx(s,i)
+ end)
+end
 if cfg.silent and hmm and gnm then
  pcall(function()
   local old
