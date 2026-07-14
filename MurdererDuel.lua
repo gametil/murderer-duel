@@ -10,19 +10,21 @@ local Mouse = LP:GetMouse()
 
 ----- CONFIG -----
 local Settings = {
-    Key = Enum.KeyCode.RightControl,  -- hold to aim
+    Enabled = true,      -- toggle on/off
     Range = 200,
     Smoothness = 0.7,
-    AutoThrow = true,  -- auto-throw when locked
+    AutoThrow = true,    -- auto-throw when locked
 }
 
 ----- TARGETING -----
+local Target = nil
+
+----- AIM LOCK (always on) -----
 local function getNearest()
     local closest, closestDist = nil, math.huge
     local myChar = LP.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
     if not myRoot then return end
-    
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LP then continue end
         local char = plr.Character
@@ -41,28 +43,9 @@ local function getNearest()
     return closest
 end
 
-local Target = nil
-local hold = false
-
------ KEYBIND -----
-UserInputService.InputBegan:Connect(function(input, gpd)
-    if gpd then return end
-    if input.KeyCode == Settings.Key then
-        hold = true
-        Target = getNearest()
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gpd)
-    if gpd then return end
-    if input.KeyCode == Settings.Key then
-        hold = false
-        Target = nil
-    end
-end)
-
------ AIM LOCK (moving cursor toward target) -----
 RunService.RenderStepped:Connect(function()
+    if not Settings.Enabled then return end
+    Target = getNearest()
     if not Target then return end
     local root = Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")
     if not root then
@@ -191,7 +174,7 @@ st.Size = UDim2.new(1, -20, 0, 18)
 st.Position = UDim2.new(0, 10, 0, 30)
 st.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 st.BackgroundTransparency = 0.5
-st.Text = "Hold RightCtrl = Lock & Throw"
+st.Text = "Auto Aim + Throw [Always ON]"
 st.TextColor3 = Color3.fromRGB(140, 200, 140)
 st.TextSize = 11; st.Font = Enum.Font.Gotham; st.Parent = f
 
