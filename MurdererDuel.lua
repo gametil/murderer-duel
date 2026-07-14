@@ -1,20 +1,18 @@
--- MDUEL v3 - Always-on aimbot (Ketamine-safe)
+-- MDUEL v4 - Fixed aimbot (Ketamine-safe)
 local RunS = game:GetService("RunService")
 local WS = game:GetService("Workspace")
 local LP = game:GetService("Players").LocalPlayer
 local UIS = game:GetService("UserInputService")
 local HUGE = math.huge or 1/0
 
-local settings = { enabled = true, range = 250, fov = 200, smooth = 0.15 }
+local settings = { enabled = true, range = 350, fov = 200, smooth = 0.15 }
 
--- Drawing cleanup tracking
 local allDrawings = {}
 local function cleanup()
 	for _, d in ipairs(allDrawings) do pcall(function() d:Remove() end) end
 	allDrawings = {}
 end
 
--- Drawing setup with nil-guard
 local bx, tx, dt, fv, nm
 if type(Drawing) == "table" and type(Drawing.new) == "function" then
 	pcall(function()
@@ -26,16 +24,55 @@ if type(Drawing) == "table" and type(Drawing.new) == "function" then
 		if bx then bx.Color = Color3.new(0,1,0); bx.Thickness = 1; bx.Filled = false end
 		if tx then tx.Size = 13; tx.Center = true; tx.Outline = true; tx.Color = Color3.new(1,1,1) end
 		if dt then dt.Radius = 4; dt.Filled = true; dt.Color = Color3.new(1,0,0); dt.NumSides = 12; dt.Transparency = 0.6 end
-		fv.Visible = true; fv.Color = Color3.new(1,1,1)
-		fv.Transparency = 0.3; fv.Thickness = 1; fv.NumSides = 60; fv.Radius = settings.fov
+		if fv then fv.Visible = true; fv.Color = Color3.new(1,1,1); fv.Transparency = 0.3; fv.Thickness = 1; fv.NumSides = 60; fv.Radius = settings.fov end
 		if nm then nm.Size = 14; nm.Center = true; nm.Outline = true; nm.Color = Color3.new(1,1,0) end
 	end)
+end
+
+-- Find root part with fallback names (R6/R15/custom)
+local function findRootPart(m)
+	if not m then return nil end
+	for _, n in ipairs({"HumanoidRootPart","UpperTorso","LowerTorso","Torso","Root","Hip"}) do
+		local p = m:FindFirstChild(n)
+		if p and p:IsA("BasePart") then return p end
+	end
+	for _, c in ipairs(m:GetChildren()) do if c:IsA("BasePart") then return c end end
+	return nil
+end
+
+-- Find humanoid with fallback
+local function findHumanoid(m)
+	if not m then return nil end
+	local h = m:FindFirstChildOfClass("Humanoid")
+	if h then return h end
+	for _, c in ipairs(m:GetChildren()) do
+		if (c:IsA("IntValue") or c:IsA("NumberValue")) and (c.Name:lower() == "health" or c.Name:lower() == "hp") then
+			return { Health = c.Value, _s = true }
+		end
+	end
+	return nil
+end
+
+-- Get userId with fallback names/casings
+local function getUserId(m)
+	if not m then return nil end
+	for _, n in ipairs({"userId","UserId","userid","playerId","PlayerId","uid","Uid"}) do
+		local ok, v = pcall(function() return m:GetAttribute(n) end)
+		if ok and v ~= nil then return tonumber(v) or v end
+	end
+	for _, n in ipairs({"userId","UserId","userid","playerId","PlayerId","uid","Uid"}) do
+		local o = m:FindFirstChild(n)
+		if o then
+			local v = o:IsA("NumberValue") and o.Value or tonumber(tostring(o.Value))
+			if v ~= nil then return v end
+		end
+	end
+	return nil
 end
 
 local chars = WS:FindFirstChild("Characters")
 if not chars then warn("MDUEL no Characters"); cleanup(); return end
 
--- Friend check
 local friendIds = {}
 delay(5, function()
 	pcall(function()
@@ -56,9 +93,8 @@ local function hideAll()
 	if dt then dt.Visible = false end; if nm then nm.Visible = false end
 end
 
--- UI elements
 local uiElems, uiVisible, uiReady = {}, true, false
-local zDebounce, ctrlDebounce, fovDeb, smDeb = true, true, true, true
+local zDeb, ctrlDeb, fovDeb, smDeb = true, true, true, true
 local UI_W, UI_H, pulse, pulseDir = 260, 180, 0, 1
 
 local function makeUI(vs)
@@ -70,7 +106,7 @@ local function makeUI(vs)
 		local ln = Drawing.new("Line"); table.insert(allDrawings, ln)
 		ln.From = Vector2.new(x,y+32); ln.To = Vector2.new(x+UI_W,y+32); ln.Color = Color3.fromRGB(0,200,255); ln.Thickness = 1; ln.Transparency = 0.5; ln.ZIndex = 101
 		local ti = Drawing.new("Text"); table.insert(allDrawings, ti)
-		ti.Text = "MDUEL V3"; ti.Size = 18; ti.Color = Color3.fromRGB(0,200,255); ti.Position = Vector2.new(x+12,y+6); ti.Font = 3; ti.Outline = true; ti.ZIndex = 102
+		ti.Text = "MDUEL V4"; ti.Size = 18; ti.Color = Color3.fromRGB(0,200,255); ti.Position = Vector2.new(x+12,y+6); ti.Font = 3; ti.Outline = true; ti.ZIndex = 102
 		local st = Drawing.new("Text"); table.insert(allDrawings, st)
 		st.Text = "ACTIVE"; st.Size = 11; st.Color = Color3.fromRGB(0,255,120); st.Position = Vector2.new(x+UI_W-65,y+11); st.Font = 2; st.Outline = true; st.ZIndex = 102
 		local a1 = Drawing.new("Text"); table.insert(allDrawings, a1)
@@ -91,46 +127,46 @@ local function makeUI(vs)
 	if ok then uiReady = true end
 end
 
+local zeroFrames = 0
+
 RunS.RenderStepped:Connect(function()
 	pcall(function()
 		local cam = WS.CurrentCamera; if not cam then return end
 		local vs = cam.ViewportSize
 
 		if not uiReady and vs.X > 100 and vs.Y > 100 then makeUI(vs) end
-
 		pulse = pulse + pulseDir * 1.5
 		if pulse >= 360 or pulse <= 0 then pulseDir = -pulseDir end
 
 		if uiVisible and uiReady then
 			local hsv = Color3.fromHSV(math.max(0, math.min(360, pulse))/360, 0.75, 1)
 			for i,e in ipairs(uiElems) do
-				if e then
-					e.Visible = true
+				if e then e.Visible = true
 					if i==1 then e.Color = hsv end
 					if i==2 or i==3 then e.Color = hsv end
 				end
 			end
-			if uiElems[4] then
-				uiElems[4].Text = settings.enabled and "ACTIVE" or "OFF"
-				uiElems[4].Color = settings.enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,50,50)
-			end
+			if uiElems[4] then uiElems[4].Text = settings.enabled and "ACTIVE" or "OFF"; uiElems[4].Color = settings.enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,50,50) end
 			if uiElems[6] then uiElems[6].Color = settings.enabled and Color3.fromRGB(0,255,120) or Color3.fromRGB(255,50,50) end
 			if uiElems[7] then uiElems[7].Text = "[  ] FOV: "..settings.fov end
 			if uiElems[8] then uiElems[8].Text = "[  ] SMOOTH: "..string.format("%.2f",settings.smooth) end
 			if uiElems[9] then uiElems[9].Text = "[  ] RANGE: "..settings.range end
-		elseif uiReady then
-			for _,e in ipairs(uiElems) do if e then e.Visible = false end end
-		end
+		elseif uiReady then for _,e in ipairs(uiElems) do if e then e.Visible = false end end end
 
 		if fv then fv.Radius = settings.fov; fv.Position = Vector2.new(vs.X/2, vs.Y/2); fv.Visible = settings.fov>0 and uiVisible end
 		if not settings.enabled then hideAll(); return end
 
-		local char = LP.Character; if not char then hideAll(); lockedTarget = nil; return end
-		local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then hideAll(); lockedTarget = nil; return end
+		local char = LP.Character
+		if not char then hideAll(); lockedTarget = nil; zeroFrames = zeroFrames + 1; return end
+
+		local hrp = findRootPart(char)
+		if not hrp then hideAll(); lockedTarget = nil; zeroFrames = zeroFrames + 1
+			if zeroFrames == 1 then warn("MDUEL: no root part on local char") end; return end
+		zeroFrames = 0
 
 		local keep = false
 		if lockedTarget and lockedTarget.Parent then
-			local h = lockedTarget.Parent:FindFirstChildOfClass("Humanoid")
+			local h = findHumanoid(lockedTarget.Parent)
 			if h and h.Health > 0 and (hrp.Position - lockedTarget.Position).Magnitude <= settings.range then
 				keep = true; lockedDist = (hrp.Position - lockedTarget.Position).Magnitude
 			end
@@ -138,24 +174,21 @@ RunS.RenderStepped:Connect(function()
 		if not keep then
 			lockedTarget = nil; lockedName = ""
 			local best, bdist = nil, HUGE
+			local myId = LP.UserId
 			for _, c in chars:GetChildren() do
-				if c ~= char then
-				local r = c:FindFirstChild("HumanoidRootPart")
-				local h = c:FindFirstChildOfClass("Humanoid")
-				if r and h and h.Health > 0 then
-					local uid
-					local aok = pcall(function() uid = c:GetAttribute("userId") end)
-					if not aok or not uid then
-						local obj = c:FindFirstChild("userId")
-						if obj then uid = tonumber(obj.Value) or obj.Value end
-					end
-					if not uid or not friendIds[uid] then
-						local d = (hrp.Position - r.Position).Magnitude
-						if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
+				local cUid = getUserId(c)
+				if cUid and tonumber(cUid) == myId then -- skip self via userId
+				else
+					local r = findRootPart(c)
+					local h = findHumanoid(c)
+					if r and h and (h._s or h.Health > 0) then
+						if not cUid or not friendIds[cUid] then
+							local d = (hrp.Position - r.Position).Magnitude
+							if d < settings.range and d < bdist then best, bdist = r, d; lockedName = c.Name end
+						end
 					end
 				end
-			end -- if c~=char
-			end -- for
+			end
 			if best then lockedTarget = best; lockedDist = bdist end
 		end
 
@@ -180,14 +213,11 @@ RunS.RenderStepped:Connect(function()
 	end)
 end)
 
--- Input handling
 UIS.InputBegan:Connect(function(key, gpe)
 	if gpe then return end
 	local kc = key.KeyCode
-	if (kc == Enum.KeyCode.RightControl or kc == Enum.KeyCode.LeftControl) and ctrlDebounce then
-		uiVisible = not uiVisible; ctrlDebounce = false
-	elseif kc == Enum.KeyCode.Z and zDebounce then
-		settings.enabled = not settings.enabled; zDebounce = false
+	if (kc == Enum.KeyCode.RightControl or kc == Enum.KeyCode.LeftControl) and ctrlDeb then uiVisible = not uiVisible; ctrlDeb = false
+	elseif kc == Enum.KeyCode.Z and zDeb then settings.enabled = not settings.enabled; zDeb = false
 	elseif uiVisible and uiReady then
 		if kc == Enum.KeyCode.LeftBracket and smDeb then settings.smooth = math.max(0.02, settings.smooth - 0.03); smDeb = false
 		elseif kc == Enum.KeyCode.RightBracket and smDeb then settings.smooth = math.min(0.5, settings.smooth + 0.03); smDeb = false
@@ -199,11 +229,11 @@ end)
 UIS.InputEnded:Connect(function(key, gpe)
 	if gpe then return end
 	local kc = key.KeyCode
-	if kc == Enum.KeyCode.RightControl or kc == Enum.KeyCode.LeftControl then ctrlDebounce = true
-	elseif kc == Enum.KeyCode.Z then zDebounce = true
+	if kc == Enum.KeyCode.RightControl or kc == Enum.KeyCode.LeftControl then ctrlDeb = true
+	elseif kc == Enum.KeyCode.Z then zDeb = true
 	elseif kc == Enum.KeyCode.LeftBracket or kc == Enum.KeyCode.RightBracket then smDeb = true
 	elseif kc == Enum.KeyCode.Minus or kc == Enum.KeyCode.Equals then fovDeb = true end
 end)
 
 game:BindToClose(function() cleanup() end)
-print("MDUEL v3 - Z=aimbot, Ctrl=UI, [-/+]=FOV, [[/]]=smooth")
+print("MDUEL v4 - Z=aimbot Ctrl=UI [-/+]=FOV [[/]]=smooth range="..settings.range)
