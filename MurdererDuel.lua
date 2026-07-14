@@ -6,6 +6,7 @@ local PS=game:GetService("Players")
 
 local cfg={range=350,fov=200,smooth=0.15}
 local debugCount=0
+local RP_NAMES={["HumanoidRootPart"]=true,["UpperTorso"]=true,["LowerTorso"]=true,["Torso"]=true,["Root"]=true,["Hip"]=true,["Head"]=true}
 
 -- Root part finder (8 fallback names + any BasePart)
 local function rp(m)
@@ -56,9 +57,9 @@ local function rebuildTargets()
   end
  end
  
- -- Source 4: Any HumanoidRootPart in workspace (deep, catches nested chars)
+ -- Source 4: Any root-named BasePart in workspace (deep O(1) per part)
  for _,p in ipairs(WS:GetDescendants())do
-  if p.Name=="HumanoidRootPart" and p:IsA("BasePart")then
+  if p:IsA("BasePart")and RP_NAMES[p.Name]then
    local m=p.Parent
    if m and m:IsA("Model")and m~=selfChar and m.Name~=selfName and not built[m]then
     built[m]=p
