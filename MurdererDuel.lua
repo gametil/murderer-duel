@@ -6,7 +6,7 @@ local PS=game:GetService("Players")
 
 local cfg={range=350,fov=200,smooth=0.15}
 local debugCount=0
-local RP_NAMES={["HumanoidRootPart"]=true,["UpperTorso"]=true,["LowerTorso"]=true,["Torso"]=true,["Root"]=true,["Hip"]=true,["Head"]=true}
+local RP_NAMES={["UpperTorso"]=true,["Head"]=true,["HumanoidRootPart"]=true,["LowerTorso"]=true,["Torso"]=true,["Root"]=true,["Hip"]=true}
 local sCount={[1]=0,[2]=0,[3]=0,[4]=0,[5]=0,[6]=0}
 
 -- Per-player character monitor for late joiners
@@ -26,10 +26,10 @@ LP.CharacterAdded:Connect(function()
 buildTick=999
 end)
 
--- Root part finder (8 fallback names + any BasePart)
+-- Root part finder (7 named roots + any BasePart fallback)
 local function rp(m)
  if not m then return nil end
- for _,n in ipairs({"HumanoidRootPart","UpperTorso","LowerTorso","Torso","Root","Hip","Head"})do
+ for _,n in ipairs({"UpperTorso","Head","HumanoidRootPart","LowerTorso","Torso","Root","Hip"})do
   local p=m:FindFirstChild(n)
   if p and p:IsA("BasePart")then return p end
  end
