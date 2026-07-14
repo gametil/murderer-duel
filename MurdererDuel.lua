@@ -1,12 +1,9 @@
--- MDUEL v2 — Always-on aimbot for Murderer Duel (Ketamine)
--- Characters in workspace.Characters, not Players service
-
+-- MDUEL v2 — Always-on aimbot for Murderer Duel (ignore friends)
 local RunS = game:GetService("RunService")
 local WS = game:GetService("Workspace")
 local LP = game:GetService("Players").LocalPlayer
 local Range, FOV = 250, 200
 
--- Drawings
 local bx, tx, dt, fv
 pcall(function()
 	bx = Drawing.new("Square")
@@ -19,6 +16,19 @@ end)
 
 local chars = WS:FindFirstChild("Characters")
 if not chars then warn("[MDUEL] No Characters folder"); return end
+
+-- Friend check
+local friendIds = {}
+local function refreshFriends()
+	friendIds = {}
+	for _, p in game:GetService("Players"):GetPlayers() do
+		if p ~= LP and p:IsFriendsWithAsync(LP.UserId) then
+			friendIds[p.UserId] = true
+		end
+	end
+end
+task.spawn(function() while task.wait(30) do pcall(refreshFriends) end end)
+task.spawn(function() task.wait(3); pcall(refreshFriends) end)
 
 RunS.RenderStepped:Connect(function()
 	local cam = WS.CurrentCamera; if not cam then return end
@@ -33,6 +43,9 @@ RunS.RenderStepped:Connect(function()
 		local r = c:FindFirstChild("HumanoidRootPart")
 		local h = c:FindFirstChildOfClass("Humanoid")
 		if not r or not h or h.Health <= 0 then continue end
+		-- Friend check via UserId attribute
+		local uid = c:GetAttribute("userId") or c:FindFirstChild("userId")
+		if uid and friendIds[tostring(uid.Value or uid)] then continue end
 		local d = (hrp.Position - r.Position).Magnitude
 		if d < Range and d < tdist then target, tdist = r, d end
 	end
@@ -47,7 +60,6 @@ RunS.RenderStepped:Connect(function()
 			else
 				if fv then fv.Color = Color3.new(1,1,1) end
 			end
-			-- ESP
 			local head = target.Parent:FindFirstChild("Head")
 			if head then
 				local hp = cam:WorldToViewportPoint(head.Position+Vector3.new(0,0.5,0))
@@ -65,4 +77,4 @@ RunS.RenderStepped:Connect(function()
 	end
 end)
 
-print("[MDUEL] v2 active — scanning workspace.Characters")
+print("[MDUEL] v2 active — friends ignored")
