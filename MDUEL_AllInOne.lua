@@ -354,9 +354,20 @@ end
 
 -- CHARACTER BODY ROTATION AIMBOT (character faces target, works in 3rd person)
 warn("MD: AIMBOT INIT bodyRot mmr=" .. tostring(mmr ~= nil))
+local mouseLocked = false
 RS.RenderStepped:Connect(function()
     pcall(function()
-        if not Settings.Enabled then return end
+        if not Settings.Enabled then
+            if mouseLocked then
+                UIS.MouseBehavior = Enum.MouseBehavior.Default
+                mouseLocked = false
+            end
+            return
+        end
+        if not mouseLocked then
+            UIS.MouseBehavior = Enum.MouseBehavior.LockCenter
+            mouseLocked = true
+        end
         local char = LP.Character
         if not char then return end
         local hrp = findRoot(char)
