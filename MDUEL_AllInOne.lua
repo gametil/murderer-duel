@@ -1,4 +1,4 @@
--- MDUEL All-In-One v13 — Range 50-1000 (default 300) + SettingsModule sync fix
+-- MDUEL All-In-One v14 — Debug + better target parts + mousemoverel verify
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
@@ -92,6 +92,7 @@ if PG then
    Settings[key]=not Settings[key]
    btn.BackgroundColor3=Settings[key]and Color3.fromRGB(0,150,100)or Color3.fromRGB(220,220,220)
    btn.Text=Settings[key]and"ON"or"OFF";updateModule()
+   warn("MD: GUI "..key.."="..tostring(Settings[key]))
   end)
  end
 
@@ -132,28 +133,28 @@ local hmm=env.hookmetamethod
 local gnm=env.getnamecallmethod
 local mmr=env.mousemoverel
 
-warn("MD: hook="..tostring(hmm~=nil).." namecall="..tostring(gnm~=nil).." mmr="..tostring(mmr~=nil))
+warn("MD: hook="..tostring(hmm~=nil).." namecall="..tostring(gnm~=nil).." mmr="..tostring(mmr~=nil).." mmrType="..type(mmr))
 
 local hasDraw=type(env.Drawing)=="table"and type(env.Drawing.new)=="function"
 warn("MD: Draw="..tostring(hasDraw))
 
-local RP_TOP={"Head","UpperTorso","Torso","Root","HumanoidRootPart","Hip"}
-local RP_BOT={"HumanoidRootPart","LowerTorso","Torso","Root","Hip","UpperTorso","Head"}
-local function rp(m)
+-- Expanded part names for Murderer Duel custom rigs
+local RP_PRIORITY={"Head","UpperTorso","Torso","LowerTorso","Root","HumanoidRootPart","Hip","LeftUpperArm","RightUpperArm","LeftUpperLeg","RightUpperLeg"}
+local function findRoot(m)
  if not m then return nil end
- for _,n in ipairs(RP_TOP)do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
- for _,c in ipairs(m:GetChildren())do if c:IsA("BasePart")then return c end end
+ for _,n in ipairs(RP_PRIORITY)do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then warn("MD: rootPart="..n.." for "..m.Name);return p end end
+ for _,c in ipairs(m:GetChildren())do if c:IsA("BasePart")then warn("MD: fallbackRoot="..c.Name.." for "..m.Name);return c end end
  return nil
 end
-local function rpTop(m)
+local function findTop(m)
  if not m then return nil end
- for _,n in ipairs(RP_TOP)do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
- return rp(m)
+ for _,n in ipairs({"Head","UpperTorso","Torso","Root","HumanoidRootPart"})do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
+ return findRoot(m)
 end
-local function rpBot(m)
+local function findBot(m)
  if not m then return nil end
- for _,n in ipairs(RP_BOT)do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
- return rp(m)
+ for _,n in ipairs({"HumanoidRootPart","LowerTorso","Torso","Root","Hip"})do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
+ return findRoot(m)
 end
 
 local targets,buildTick,aimPos={},0,nil
@@ -163,7 +164,7 @@ local function rebuild()
  local t={}
  local sc=LP.Character;local sn=LP.Name
  local function add(m)
-  if m and m~=sc and m.Name~=sn and not t[m]then local r=rp(m);if r then t[m]=r end end
+  if m and m~=sc and m.Name~=sn and not t[m]then local r=findRoot(m);if r then t[m]=r end end
  end
  for _,c in ipairs(WS:GetChildren())do if c:IsA("Model")then add(c)end end
  local ch=WS:FindFirstChild("Characters")
@@ -172,7 +173,7 @@ local function rebuild()
  for _,f in ipairs(WS:GetChildren())do if f:IsA("Folder")and f.Name~="Characters"then for _,c in ipairs(f:GetChildren())do if c:IsA("Model")then add(c)end end end end
  targets=t;buildTick=0
  local n=0;for _ in pairs(targets)do n=n+1 end
- warn("MD: targets="..n.." (self="..sn..")")
+ warn("MD: targets="..n.." (self="..sn..") Enabled="..tostring(Settings.Enabled))
 end
 rebuild()
 
@@ -180,7 +181,7 @@ local function getTarget()
  if not Settings.Enabled then return nil end
  local cam=WS.CurrentCamera;if not cam then return nil end
  local char=LP.Character;if not char then return nil end
- local hrp=rp(char);if not hrp then return nil end
+ local hrp=findRoot(char);if not hrp then warn("MD: no local HRP");return nil end
  local hp=hrp.Position
  local best,bd=nil,1/0
  for m,r in pairs(targets)do
@@ -197,7 +198,7 @@ local function getTarget()
    end
   end
  end
- if best then warn("MD: target="..best:GetFullName().." dist="..math.floor(bd))end
+ if best then warn("MD: target="..best:GetFullName().." dist="..math.floor(bd).." FOV="..Settings.FOV.." Range="..Settings.Range)end
  return best
 end
 
@@ -238,17 +239,17 @@ if hmm and gnm then pcall(function()
  warn("MD: Raycast hook ok")
 end)end
 
--- INSTANT AIMBOT WITH TRACKED aimPos + sensitivity
+-- INSTANT AIMBOT WITH TRACKED aimPos + sensitivity + FULL DEBUG
 if mmr then
  local frame=0
  RS.RenderStepped:Connect(function()
   pcall(function()
    frame=frame+1
-   if not Settings.Enabled then return end
+   if not Settings.Enabled then if frame%120==0 then warn("MD: aimbot disabled, Enabled="..tostring(Settings.Enabled))end return end
    local cam=WS.CurrentCamera;if not cam then return end
    local char=LP.Character;if not char then return end
-   local hrp=rp(char);if not hrp then return end
-   if not aimPos then aimPos=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)end
+   local hrp=findRoot(char);if not hrp then return end
+   if not aimPos then aimPos=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2);warn("MD: aimPos init center")end
    buildTick=buildTick+1
    if buildTick>=60 or not next(targets)then rebuild()end
    local hp=hrp.Position
@@ -272,12 +273,17 @@ if mmr then
     local tg=Vector2.new(vp.X,vp.Y)
     local dx=(tg.X-aimPos.X)*0.5
     local dy=(tg.Y-aimPos.Y)*0.5
-    aimPos=Vector2.new(aimPos.X+dx,aimPos.Y+dy)
-    if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." FOV="..Settings.FOV.." Range="..Settings.Range)end
-    mmr(dx,dy)
-   elseif frame%120==0 then warn("MD: no target in range")end
+    if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." tg=("..math.floor(tg.X)..","..math.floor(tg.Y)..") aimPos=("..math.floor(aimPos.X)..","..math.floor(aimPos.Y)..") FOV="..Settings.FOV.." Range="..Settings.Range.." dist="..math.floor(bd))end
+    if dx~=0 or dy~=0 then
+     local ok,err=pcall(function()mmr(dx,dy)end)
+     if not ok then warn("MD: mousemoverel ERROR: "..tostring(err))end
+     aimPos=Vector2.new(aimPos.X+dx,aimPos.Y+dy)
+    end
+   elseif frame%120==0 then warn("MD: no target in range (Enabled="..tostring(Settings.Enabled).." Range="..Settings.Range.." FOV="..Settings.FOV..")")end
   end)
  end)
+else
+ warn("MD: NO mousemoverel - aimbot disabled")
 end
 
 -- ESP
@@ -295,7 +301,7 @@ if hasDraw then
    local c=p.Character
    if not c or not c.Parent then o.box.Visible=false;o.name.Visible=false
    else
-    local top=rpTop(c);local bot=rpBot(c)
+    local top=findTop(c);local bot=findBot(c)
     if top and bot then
      local tp,on=WS.CurrentCamera:WorldToViewportPoint(top.Position+Vector3.new(0,0.5,0))
      if on then
@@ -317,4 +323,4 @@ if hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL v13 loaded — Range 50-1000 (default 300) + SettingsModule sync fix")
+warn("MDUEL v14 loaded — Debug + expanded root parts + mousemoverel verify")
