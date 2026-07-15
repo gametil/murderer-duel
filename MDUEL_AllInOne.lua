@@ -1,11 +1,11 @@
--- MDUEL All-In-One v12 — Fixed aimPos init + sensitivity + Range + ESP + Light GUI
+-- MDUEL All-In-One v13 — Range 50-1000 (default 300) + SettingsModule sync fix
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
 local PS=game:GetService("Players")
 local UIS=game:GetService("UserInputService")
 
-local Settings={Enabled=false,FOV=120,Range=150,TargetLock=true}
+local Settings={Enabled=false,FOV=120,Range=300,TargetLock=true}
 
 -- ===== LIGHT THEME GUI =====
 local PG=LP:WaitForChild("PlayerGui",5)
@@ -18,7 +18,7 @@ if PG then
 
  local mod=Instance.new("ModuleScript")
  mod.Name="SettingsModule"
- mod.Source="return {Enabled=false,FOV=120,Range=150,TargetLock=true}"
+ mod.Source="return {Enabled=false,FOV=120,Range=300,TargetLock=true}"
  mod.Parent=sg
 
  local main=Instance.new("Frame")
@@ -121,7 +121,7 @@ if PG then
 
  toggle(main,"Enabled",1)
  slider(main,"FOV",20,300,2)
- slider(main,"Range",50,500,3)
+ slider(main,"Range",50,1000,3)
  toggle(main,"TargetLock",4)
  updateModule()
 end
@@ -156,9 +156,7 @@ local function rpBot(m)
  return rp(m)
 end
 
-local targets,buildTick={},0
-local cam=WS.CurrentCamera
-local aimPos=cam and Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)or Vector2.new()
+local targets,buildTick,aimPos={},0,nil
 LP.CharacterAdded:Connect(function()buildTick=999 end)
 
 local function rebuild()
@@ -199,7 +197,7 @@ local function getTarget()
    end
   end
  end
- if best then warn("MD: target="..best:GetFullName().." dist="..math.floor(bd)) end
+ if best then warn("MD: target="..best:GetFullName().." dist="..math.floor(bd))end
  return best
 end
 
@@ -240,10 +238,9 @@ if hmm and gnm then pcall(function()
  warn("MD: Raycast hook ok")
 end)end
 
--- INSTANT AIMBOT WITH TRACKED aimPos (fixed init + sensitivity)
+-- INSTANT AIMBOT WITH TRACKED aimPos + sensitivity
 if mmr then
  local frame=0
- local sensitivity=0.5  -- adjust if over/under aiming
  RS.RenderStepped:Connect(function()
   pcall(function()
    frame=frame+1
@@ -251,6 +248,7 @@ if mmr then
    local cam=WS.CurrentCamera;if not cam then return end
    local char=LP.Character;if not char then return end
    local hrp=rp(char);if not hrp then return end
+   if not aimPos then aimPos=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)end
    buildTick=buildTick+1
    if buildTick>=60 or not next(targets)then rebuild()end
    local hp=hrp.Position
@@ -272,8 +270,8 @@ if mmr then
    if best then
     local vp=cam:WorldToViewportPoint(best.Position)
     local tg=Vector2.new(vp.X,vp.Y)
-    local dx=(tg.X-aimPos.X)*sensitivity
-    local dy=(tg.Y-aimPos.Y)*sensitivity
+    local dx=(tg.X-aimPos.X)*0.5
+    local dy=(tg.Y-aimPos.Y)*0.5
     aimPos=Vector2.new(aimPos.X+dx,aimPos.Y+dy)
     if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." FOV="..Settings.FOV.." Range="..Settings.Range)end
     mmr(dx,dy)
@@ -319,4 +317,4 @@ if hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL v12 loaded — fixed aimPos init (center) + sensitivity + Range + ESP + light GUI")
+warn("MDUEL v13 loaded — Range 50-1000 (default 300) + SettingsModule sync fix")
