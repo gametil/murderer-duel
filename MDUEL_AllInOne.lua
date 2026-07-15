@@ -1,4 +1,4 @@
--- MDUEL All-In-One v18 — Camera.CFrame aimbot (3rd person) + fixed self-filter
+-- MDUEL All-In-One v19 — mousemoverel cursor aimbot (3rd person) + fixed self-filter
 local RS = game:GetService("RunService")
 local LP = game:GetService("Players").LocalPlayer
 local WS = game:GetService("Workspace")
@@ -352,22 +352,14 @@ if hmm and gnm then
     end)
 end
 
--- CHARACTER BODY ROTATION AIMBOT (character faces target, works in 3rd person)
-warn("MD: AIMBOT INIT bodyRot mmr=" .. tostring(mmr ~= nil))
-local mouseLocked = false
+-- MOUSEMOVEREL CURSOR AIMBOT (moves mouse to target on screen)
+warn("MD: AIMBOT INIT mousemoverel mmr=" .. tostring(mmr ~= nil))
+local aimPos = Vector2.new(WS.CurrentCamera and WS.CurrentCamera.ViewportSize.X / 2 or 960, WS.CurrentCamera and WS.CurrentCamera.ViewportSize.Y / 2 or 540)
 RS.RenderStepped:Connect(function()
     pcall(function()
-        if not Settings.Enabled then
-            if mouseLocked then
-                UIS.MouseBehavior = Enum.MouseBehavior.Default
-                mouseLocked = false
-            end
-            return
-        end
-        if not mouseLocked then
-            UIS.MouseBehavior = Enum.MouseBehavior.LockCenter
-            mouseLocked = true
-        end
+        if not Settings.Enabled then return end
+        local cam = WS.CurrentCamera
+        if not cam then return end
         local char = LP.Character
         if not char then return end
         local hrp = findRoot(char)
@@ -377,21 +369,48 @@ RS.RenderStepped:Connect(function()
 
         local best = getTarget()
         if not best then
-            warn("MD:BODY no target")
+            warn("MD:AIM no target")
             return
         end
 
         local targetPos = best.Position
-        -- Keep Y level so character doesn't tilt up/down
-        targetPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
-        local dir = (targetPos - hrp.Position).Unit
-        local newCF = CFrame.new(hrp.Position, hrp.Position + dir)
+        local vp, on = cam:WorldToViewportPoint(targetPos)
+        if not on then
+            warn("MD:AIM target off screen")
+            return
+        end
 
-        -- Smooth body rotation
+        local screenCenter = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+        local targetScreen = Vector2.new(vp.X, vp.Y)
+        local dx = (targetScreen.X - screenCenter.X)
+        local dy = (targetScreen.Y - screenCenter.Y)
+        local fovDist = math.sqrt(dx * dx + dy * dy)
+
+        if Settings.FOV > 0 and fovDist > Settings.FOV then
+            warn("MD:AIM target outside FOV " .. math.floor(fovDist) .. "/" .. Settings.FOV)
+            return
+        end
+
+        -- Smooth mouse movement
         local s = Settings.Smoothness or 0.15
-        hrp.CFrame = hrp.CFrame:Lerp(newCF, s)
+        local moveX = dx * s
+        local moveY = dy * s
 
-        warn("MD:BODY aimed at " .. best.Parent.Name .. " dist=" .. math.floor((hrp.Position - targetPos).Magnitude) .. " smooth=" .. s)
+        -- Track aim position independently (not from GetMousePosition which returns center)
+        aimPos = aimPos + Vector2.new(moveX, moveY)
+
+        if mmr then
+            local ok, err = pcall(function()
+                mmr(moveX, moveY)
+            end)
+            if ok then
+                warn("MD:AIM mousemoverel OK dx=" .. math.floor(moveX) .. " dy=" .. math.floor(moveY) .. " tg=(" .. math.floor(targetScreen.X) .. "," .. math.floor(targetScreen.Y) .. ") aimPos=(" .. math.floor(aimPos.X) .. "," .. math.floor(aimPos.Y) .. ") FOV=" .. Settings.FOV .. " Range=" .. Settings.Range)
+            else
+                warn("MD:AIM mousemoverel FAIL: " .. tostring(err))
+            end
+        else
+            warn("MD:AIM mousemoverel NIL - executor blocked")
+        end
     end)
 end)
 
@@ -471,4 +490,4 @@ if hasDraw then
     RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL v18 loaded — Camera.CFrame aimbot (3rd person) + fixed self-filter")
+warn("MDUEL v19 loaded — mousemoverel cursor aimbot + fixed self-filter + Range 50-10000")
