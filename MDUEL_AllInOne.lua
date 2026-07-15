@@ -352,13 +352,11 @@ if hmm and gnm then
     end)
 end
 
--- CAMERA CFRAME AIMBOT (works in 3rd person)
-warn("MD: AIMBOT INIT cam=CFrame mmr=" .. tostring(mmr ~= nil))
+-- CHARACTER BODY ROTATION AIMBOT (character faces target, works in 3rd person)
+warn("MD: AIMBOT INIT bodyRot mmr=" .. tostring(mmr ~= nil))
 RS.RenderStepped:Connect(function()
     pcall(function()
         if not Settings.Enabled then return end
-        local cam = WS.CurrentCamera
-        if not cam then return end
         local char = LP.Character
         if not char then return end
         local hrp = findRoot(char)
@@ -368,20 +366,21 @@ RS.RenderStepped:Connect(function()
 
         local best = getTarget()
         if not best then
-            warn("MD:CAM no target")
+            warn("MD:BODY no target")
             return
         end
 
         local targetPos = best.Position
-        local camPos = cam.CFrame.Position
-        local dir = (targetPos - camPos).Unit
-        local newCF = CFrame.new(camPos, camPos + dir)
+        -- Keep Y level so character doesn't tilt up/down
+        targetPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
+        local dir = (targetPos - hrp.Position).Unit
+        local newCF = CFrame.new(hrp.Position, hrp.Position + dir)
 
-        -- Smooth interpolation
+        -- Smooth body rotation
         local s = Settings.Smoothness or 0.15
-        cam.CFrame = cam.CFrame:Lerp(newCF, s)
+        hrp.CFrame = hrp.CFrame:Lerp(newCF, s)
 
-        warn("MD:CAM aimed at " .. best.Parent.Name .. " dist=" .. math.floor((hrp.Position - targetPos).Magnitude) .. " smooth=" .. s)
+        warn("MD:BODY aimed at " .. best.Parent.Name .. " dist=" .. math.floor((hrp.Position - targetPos).Magnitude) .. " smooth=" .. s)
     end)
 end)
 
