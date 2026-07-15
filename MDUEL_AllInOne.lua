@@ -5,7 +5,7 @@ local WS = game:GetService("Workspace")
 local PS = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 
-local Settings = {Enabled = false, FOV = 120, Range = 300, TargetLock = true, Smoothness = 0.15}
+local Settings = {Enabled = false, FOV = 120, Range = 3000, TargetLock = true, Smoothness = 0.15}
 
 -- ===== LIGHT THEME GUI =====
 local function createGUI()
@@ -19,7 +19,7 @@ local function createGUI()
 
     local mod = Instance.new("ModuleScript")
     mod.Name = "SettingsModule"
-    mod.Source = "return {Enabled=false,FOV=120,Range=300,TargetLock=true,Smoothness=0.15}"
+    mod.Source = "return {Enabled=false,FOV=120,Range=3000,TargetLock=true,Smoothness=0.15}"
     mod.Parent = sg
 
     local main = Instance.new("Frame")
@@ -170,7 +170,7 @@ local function createGUI()
 
     toggle(main, "Enabled", 1)
     slider(main, "FOV", 20, 300, 2)
-    slider(main, "Range", 50, 1000, 3)
+    slider(main, "Range", 50, 5000, 3)
     slider(main, "Smoothness", 0.01, 1, 4)
     toggle(main, "TargetLock", 5)
     updateModule()
