@@ -1,15 +1,35 @@
--- MDUEL Ultimate v6 — debug every step
+-- MDUEL Ultimate v7 — GUI + aimbot (reads Settings from GUI live)
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
 local PS=game:GetService("Players")
 
-local cfg={
- range=350,fov=300,smooth=0.15,
- silent=true,esp=true,teamCheck=false,
- esp_color_enemy=Color3.new(1,0,0),
- esp_color_team=Color3.new(0,1,0)
-}
+-- Live config from GUI (no require, just poll the GUI)
+local function getLiveCfg()
+ local pg=LP:FindFirstChild("PlayerGui")
+ local gui=pg and pg:FindFirstChild("MDUEL_GUI")
+ if gui then
+  local main=gui:FindFirstChild("MainFrame")
+  if main then
+   local function getToggle(name)
+    local btn=main:FindFirstChild(name)
+    return btn and btn:FindFirstChild("TextButton") and btn.TextButton.Text=="ON"or false
+   end
+   local function getSlider(name)
+    local f=main:FindFirstChild(name)
+    local val=f and f:FindFirstChild("TextLabel")
+    return val and tonumber(val.Text)or 0
+   end
+   return {
+    Enabled=getToggle("Enabled"),
+    FOV=getSlider("FOV"),
+    Smoothness=getSlider("Smoothness"),
+    TargetLock=getToggle("TargetLock")
+   }
+  end
+ end
+ return {Enabled=false,FOV=120,Smoothness=0.18,TargetLock=true}
+end
 
 local env=getfenv()
 local hmm=env.hookmetamethod
@@ -73,6 +93,8 @@ end
 rebuild()
 
 local function getTarget()
+ local S=getLiveCfg()
+ if not S.Enabled then return nil end
  local cam=WS.CurrentCamera
  if not cam then return nil end
  local char=LP.Character;if not char then return nil end
@@ -84,10 +106,11 @@ local function getTarget()
   elseif m==char then targets[m]=nil
   else
    local d=(hp-r.Position).Magnitude
-   if d<=cfg.range and d<bd then
+   if d<=350 and d<bd then
     local vp,on=cam:WorldToViewportPoint(r.Position)
     if on then
-     if cfg.fov==0 or(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude<=cfg.fov then
+     local fovDist=(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude
+     if S.FOV==0 or fovDist<=S.FOV then
       best=r;bd=d
      end
     end
@@ -99,30 +122,31 @@ local function getTarget()
 end
 
 -- SILENT AIM 1: Mouse.Hit/Target
-if cfg.silent and hmm then
+if hmm then
  pcall(function()
   local Mouse=LP:GetMouse()
   if Mouse then
    local oldIdx
    oldIdx=hmm(game,"__index",function(s,i)
-    if s==Mouse and(i=="Hit"or i=="Target")then
+    local S=getLiveCfg()
+    if S.Enabled and s==Mouse and(i=="Hit"or i=="Target")then
      local t=getTarget()
      if t then return i=="Hit"and t.CFrame or t end
     end
     return oldIdx(s,i)
    end)
    warn("MD: Mouse.Hit hook ok")
-  else
-   warn("MD: GetMouse nil — Mouse.Hit disabled")
-  end
+  else warn("MD: GetMouse nil")end
  end)
 end
 
 -- SILENT AIM 2: Raycast __namecall
-if cfg.silent and hmm and gnm then
+if hmm and gnm then
  pcall(function()
   local old
   old=hmm(game,"__namecall",function(...)
+   local S=getLiveCfg()
+   if not S.Enabled then return old(...)end
    local m=gnm()
    if m=="Raycast"or m=="FindPartOnRayWithIgnoreList"or m=="FindPartOnRayWithWhitelist"or m=="FindPartOnRay"then
     local a={...}
@@ -142,12 +166,14 @@ if cfg.silent and hmm and gnm then
  end)
 end
 
--- MOUSEMOVEREL AIMBOT — debug every frame
+-- MOUSEMOVEREL AIMBOT
 if mmr then
  local frame=0
  RS.RenderStepped:Connect(function()
   pcall(function()
    frame=frame+1
+   local S=getLiveCfg()
+   if not S.Enabled then return end
    local cam=WS.CurrentCamera
    if not cam then return end;local char=LP.Character
    if not char then return end;local hrp=rp(char)
@@ -161,10 +187,11 @@ if mmr then
     elseif m==char then targets[m]=nil
     else
      local d=(hp-r.Position).Magnitude
-     if d<=cfg.range and d<bd then
+     if d<=350 and d<bd then
       local vp,on=cam:WorldToViewportPoint(r.Position)
       if on then
-       if cfg.fov==0 or(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude<=cfg.fov then
+       local fovDist=(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude
+       if S.FOV==0 or fovDist<=S.FOV then
         best=r;bd=d
        end
       end
@@ -175,22 +202,22 @@ if mmr then
     local vp=cam:WorldToViewportPoint(best.Position)
     local tg=Vector2.new(vp.X,vp.Y)
     local prev=aimPos
-    aimPos=prev+(tg-prev)*cfg.smooth
+    aimPos=prev+(tg-prev)*S.Smoothness
     local dx=aimPos.X-prev.X
     local dy=aimPos.Y-prev.Y
-    -- DEBUG: log every 30 frames
     if frame%30==0 then
-     warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." tg=("..math.floor(tg.X)..","..math.floor(tg.Y)..") pos=("..math.floor(aimPos.X)..","..math.floor(aimPos.Y)..")")
+     warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." fov="..S.FOV.." smooth="..S.Smoothness)
     end
     mmr(dx,dy)
    elseif frame%120==0 then
-    warn("MD: no target in aimbot loop (targets="..#targets..")")
+    warn("MD: no target")
    end
   end)
  end)
 end
 
-if cfg.esp and hasDraw then
+-- ESP
+if hasDraw then
  local objs={}
  local function add(p)
   if p==LP or objs[p]then return end
@@ -213,8 +240,7 @@ if cfg.esp and hasDraw then
       local h=math.abs(tp.Y-bp.Y);if h<20 then h=20 end
       local w=h*0.55;if w<15 then w=15 end
       local x=tp.X-w/2;local y=tp.Y-h
-      local cl=cfg.esp_color_enemy
-      if cfg.teamCheck and p.Team==LP.Team then cl=cfg.esp_color_team end
+      local cl=Color3.new(1,0,0)
       o.box.Position=Vector2.new(x,y);o.box.Size=Vector2.new(w,h);o.box.Color=cl;o.box.Visible=true
       o.name.Position=Vector2.new(x+w/2,y-14);o.name.Text=p.Name;o.name.Color=cl;o.name.Visible=true
      else o.box.Visible=false;o.name.Visible=false end
@@ -229,4 +255,4 @@ if cfg.esp and hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL ULTIMATE v6 loaded — check console for debug")
+warn("MDUEL ULTIMATE v7 loaded — GUI controls active")
