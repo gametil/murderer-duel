@@ -1,4 +1,4 @@
--- MDUEL All-In-One v11 — Fixed instant lock (tracked aimPos) + Range + ESP + Light GUI
+-- MDUEL All-In-One v12 — Fixed aimPos init + sensitivity + Range + ESP + Light GUI
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
@@ -156,7 +156,9 @@ local function rpBot(m)
  return rp(m)
 end
 
-local targets,buildTick,aimPos={},0,Vector2.new()
+local targets,buildTick={},0
+local cam=WS.CurrentCamera
+local aimPos=cam and Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)or Vector2.new()
 LP.CharacterAdded:Connect(function()buildTick=999 end)
 
 local function rebuild()
@@ -238,9 +240,10 @@ if hmm and gnm then pcall(function()
  warn("MD: Raycast hook ok")
 end)end
 
--- INSTANT AIMBOT WITH TRACKED aimPos (no overshoot)
+-- INSTANT AIMBOT WITH TRACKED aimPos (fixed init + sensitivity)
 if mmr then
  local frame=0
+ local sensitivity=0.5  -- adjust if over/under aiming
  RS.RenderStepped:Connect(function()
   pcall(function()
    frame=frame+1
@@ -269,9 +272,9 @@ if mmr then
    if best then
     local vp=cam:WorldToViewportPoint(best.Position)
     local tg=Vector2.new(vp.X,vp.Y)
-    local dx=tg.X-aimPos.X
-    local dy=tg.Y-aimPos.Y
-    aimPos=tg
+    local dx=(tg.X-aimPos.X)*sensitivity
+    local dy=(tg.Y-aimPos.Y)*sensitivity
+    aimPos=Vector2.new(aimPos.X+dx,aimPos.Y+dy)
     if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." FOV="..Settings.FOV.." Range="..Settings.Range)end
     mmr(dx,dy)
    elseif frame%120==0 then warn("MD: no target in range")end
@@ -316,4 +319,4 @@ if hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL v11 loaded — fixed instant lock (tracked aimPos) + Range + ESP + light GUI")
+warn("MDUEL v12 loaded — fixed aimPos init (center) + sensitivity + Range + ESP + light GUI")
