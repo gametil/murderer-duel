@@ -1,4 +1,4 @@
--- MDUEL All-In-One v16 — Fixed self-filter + guaranteed aimbot loop debug
+-- MDUEL All-In-One v17 — Fixed self-filter + guaranteed init debug
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
@@ -133,7 +133,7 @@ local hmm=env.hookmetamethod
 local gnm=env.getnamecallmethod
 local mmr=env.mousemoverel
 
-warn("MD: hook="..tostring(hmm~=nil).." namecall="..tostring(gnm~=nil).." mmr="..tostring(mmr~=nil).." mmrType="..type(mmr))
+warn("MD: INIT hook="..tostring(hmm~=nil).." namecall="..tostring(gnm~=nil).." mmr="..tostring(mmr~=nil).." mmrType="..type(mmr))
 
 local hasDraw=type(env.Drawing)=="table"and type(env.Drawing.new)=="function"
 warn("MD: Draw="..tostring(hasDraw))
@@ -160,26 +160,29 @@ end
 local targets,buildTick,aimPos={},0,nil
 LP.CharacterAdded:Connect(function()buildTick=999 end)
 
+-- ROBUST self-check: instance, name, PlayerFromCharacter, AND UserId
 local function isLocalPlayer(m)
  if not m then return true end
- -- Check multiple ways to identify self
- if m==LP.Character then return true end
- if m.Name==LP.Name then return true end
+ if m==LP.Character then warn("MD: isLocalPlayer match by instance");return true end
+ if m.Name==LP.Name then warn("MD: isLocalPlayer match by name "..m.Name);return true end
  local plr=PS:GetPlayerFromCharacter(m)
- if plr and plr==LP then return true end
+ if plr and plr==LP then warn("MD: isLocalPlayer match by PlayerFromCharacter");return true end
+ if plr and plr.UserId==LP.UserId then warn("MD: isLocalPlayer match by UserId");return true end
  return false
 end
 
 local function rebuild()
  local t={}
- local function add(m)
-  if m and not isLocalPlayer(m) and not t[m]then local r=findRoot(m);if r then t[m]=r end end
- end
- for _,c in ipairs(WS:GetChildren())do if c:IsA("Model")then add(c)end end
+ -- ONLY scan WS.Characters and Players - skip WS:GetChildren() (catches arena parts)
  local ch=WS:FindFirstChild("Characters")
- if ch then for _,c in ipairs(ch:GetChildren())do if c:IsA("Model")then add(c)end end end
- for _,p in ipairs(PS:GetPlayers())do if p~=LP then local c=p.Character;if c then add(c)end end end
- for _,f in ipairs(WS:GetChildren())do if f:IsA("Folder")and f.Name~="Characters"then for _,c in ipairs(f:GetChildren())do if c:IsA("Model")then add(c)end end end end
+ if ch then
+  for _,c in ipairs(ch:GetChildren())do
+   if c:IsA("Model")and not isLocalPlayer(c)then local r=findRoot(c);if r then t[c]=r end end
+  end
+ end
+ for _,p in ipairs(PS:GetPlayers())do
+  if p~=LP then local c=p.Character;if c and not isLocalPlayer(c)then local r=findRoot(c);if r then t[c]=r end end end
+ end
  targets=t;buildTick=0
  local n=0;for _ in pairs(targets)do n=n+1 end
  warn("MD: targets="..n.." (self="..LP.Name..") Enabled="..tostring(Settings.Enabled))
@@ -187,7 +190,7 @@ end
 rebuild()
 
 local function getTarget()
- warn("MD:getTarget Enabled="..tostring(Settings.Enabled).." Range="..Settings.Range.." FOV="..Settings.FOV.." targets="..(function()local c=0;for _ in pairs(targets)do c=c+1 end return c end)())
+ warn("MD:getTarget Enabled="..tostring(Settings.Enabled).." Range="..Settings.Range.." FOV="..Settings.FOV)
  if not Settings.Enabled then return nil end
  local cam=WS.CurrentCamera;if not cam then return nil end
  local char=LP.Character;if not char then return nil end
@@ -250,10 +253,11 @@ if hmm and gnm then pcall(function()
  warn("MD: Raycast hook ok")
 end)end
 
--- INSTANT AIMBOT WITH TRACKED aimPos + sensitivity + FULL DEBUG
+-- INSTANT AIMBOT - guaranteed init log
+warn("MD: AIMBOT INIT mmr="..tostring(mmr~=nil))
 if mmr then
- local frame=0
  warn("MD: mousemoverel FOUND - aimbot ENABLED")
+ local frame=0
  RS.RenderStepped:Connect(function()
   pcall(function()
    frame=frame+1
@@ -336,4 +340,4 @@ if hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL v16 loaded — fixed self-filter + guaranteed aimbot loop debug")
+warn("MDUEL v17 loaded — fixed self-filter + guaranteed init debug")
