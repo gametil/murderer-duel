@@ -1,14 +1,13 @@
--- MDUEL All-In-One — GUI + Aimbot + ESP (single loadstring)
+-- MDUEL All-In-One v9 — Instant lock aim + ESP + Light theme GUI
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
 local PS=game:GetService("Players")
 local UIS=game:GetService("UserInputService")
 
--- Settings (shared with GUI)
-local Settings={Enabled=false,FOV=120,Smoothness=0.18,TargetLock=true}
+local Settings={Enabled=false,FOV=120,TargetLock=true}
 
--- ===== GUI =====
+-- ===== LIGHT THEME GUI =====
 local PG=LP:WaitForChild("PlayerGui",5)
 if PG then
  local sg=Instance.new("ScreenGui")
@@ -19,14 +18,14 @@ if PG then
 
  local mod=Instance.new("ModuleScript")
  mod.Name="SettingsModule"
- mod.Source="return {Enabled=false,FOV=120,Smoothness=0.18,TargetLock=true}"
+ mod.Source="return {Enabled=false,FOV=120,TargetLock=true}"
  mod.Parent=sg
 
  local main=Instance.new("Frame")
  main.Name="MainFrame"
- main.Size=UDim2.new(0,280,0,240)
- main.Position=UDim2.new(0.5,-140,0.5,-120)
- main.BackgroundColor3=Color3.fromRGB(30,30,30)
+ main.Size=UDim2.new(0,280,0,200)
+ main.Position=UDim2.new(0.5,-140,0.5,-100)
+ main.BackgroundColor3=Color3.fromRGB(245,245,245)
  main.BorderSizePixel=0
  main.Active=true
  main.Draggable=true
@@ -34,7 +33,7 @@ if PG then
 
  Instance.new("UICorner",main).CornerRadius=UDim.new(0,8)
  local stroke=Instance.new("UIStroke",main)
- stroke.Color=Color3.fromRGB(60,60,60);stroke.Thickness=1
+ stroke.Color=Color3.fromRGB(200,200,200);stroke.Thickness=1
 
  local title=Instance.new("TextLabel")
  title.Size=UDim2.new(1,0,0,36)
@@ -42,7 +41,7 @@ if PG then
  title.Text="MDUEL Aim Settings"
  title.Font=Enum.Font.GothamBold
  title.TextSize=16
- title.TextColor3=Color3.new(1,1,1)
+ title.TextColor3=Color3.fromRGB(30,30,30)
  title.TextXAlignment=Enum.TextXAlignment.Left
  title.Parent=main
  Instance.new("UIPadding",title).PaddingLeft=UDim.new(0,12)
@@ -50,17 +49,15 @@ if PG then
  local close=Instance.new("TextButton")
  close.Size=UDim2.new(0,28,0,28)
  close.Position=UDim2.new(1,-34,0,4)
- close.BackgroundColor3=Color3.fromRGB(60,60,60)
+ close.BackgroundColor3=Color3.fromRGB(220,220,220)
  close.Text="×"
  close.Font=Enum.Font.GothamBold
  close.TextSize=18
- close.TextColor3=Color3.new(1,1,1)
+ close.TextColor3=Color3.fromRGB(30,30,30)
  close.Parent=main
  Instance.new("UICorner",close).CornerRadius=UDim.new(0,6)
 
- close.MouseButton1Click:Connect(function()
-  main.Visible=false
- end)
+ close.MouseButton1Click:Connect(function() main.Visible=false end)
 
  local layout=Instance.new("UIListLayout",main)
  layout.Padding=UDim.new(0,8)
@@ -85,18 +82,14 @@ if PG then
   l.Text=text
   l.Font=Enum.Font.Gotham
   l.TextSize=13
-  l.TextColor3=Color3.fromRGB(204,204,204)
+  l.TextColor3=Color3.fromRGB(60,60,60)
   l.TextXAlignment=Enum.TextXAlignment.Left
   l.Parent=parent
   return l
  end
 
  local function updateModule()
-  mod.Source=[=[return {
- Enabled=]=]..tostring(Settings.Enabled)..[=[,
- FOV=]=]..Settings.FOV..=[=[,
- Smoothness=]=]..Settings.Smoothness..=[=[,
- TargetLock=]=]..tostring(Settings.TargetLock)..[=[}] =]
+  mod.Source="return {Enabled="..tostring(Settings.Enabled)..",FOV="..Settings.FOV..",TargetLock="..tostring(Settings.TargetLock).."}"
  end
 
  local function toggle(parent, key, order)
@@ -106,34 +99,34 @@ if PG then
   btn.Name="TextButton"
   btn.Size=UDim2.new(0,54,0,26)
   btn.Position=UDim2.new(1,-54,0.5,-13)
-  btn.BackgroundColor3=Settings[key]and Color3.fromRGB(0,120,215)or Color3.fromRGB(60,60,60)
-  btn.Text=Settings[key]and"ON"or"OFF"
+  btn.BackgroundColor3=Settings[key] and Color3.fromRGB(0,150,100) or Color3.fromRGB(220,220,220)
+  btn.Text=Settings[key] and"ON"or"OFF"
   btn.Font=Enum.Font.GothamBold
   btn.TextSize=12
-  btn.TextColor3=Color3.new(1,1,1)
+  btn.TextColor3=Color3.fromRGB(255,255,255)
   btn.Parent=f
   Instance.new("UICorner",btn).CornerRadius=UDim.new(0,4)
   btn.MouseButton1Click:Connect(function()
    Settings[key]=not Settings[key]
-   btn.BackgroundColor3=Settings[key]and Color3.fromRGB(0,120,215)or Color3.fromRGB(60,60,60)
-   btn.Text=Settings[key]and"ON"or"OFF"
+   btn.BackgroundColor3=Settings[key] and Color3.fromRGB(0,150,100) or Color3.fromRGB(220,220,220)
+   btn.Text=Settings[key] and"ON"or"OFF"
    updateModule()
   end)
  end
 
- local function slider(parent, key, min, max, order, fmt)
+ local function slider(parent, key, min, max, order)
   local f=row(key,order)
   label(f,key)
   local track=Instance.new("Frame")
   track.Name="Track"
   track.Size=UDim2.new(0,160,0,6)
   track.Position=UDim2.new(0,100,0.5,-3)
-  track.BackgroundColor3=Color3.fromRGB(60,60,60)
+  track.BackgroundColor3=Color3.fromRGB(220,220,220)
   track.Parent=f
   Instance.new("UICorner",track).CornerRadius=UDim.new(0,3)
   local fill=Instance.new("Frame")
   fill.Name="Fill"
-  fill.BackgroundColor3=Color3.fromRGB(0,120,215)
+  fill.BackgroundColor3=Color3.fromRGB(0,150,100)
   Instance.new("UICorner",fill).CornerRadius=UDim.new(0,3)
   fill.Parent=track
   local val=Instance.new("TextLabel")
@@ -143,15 +136,15 @@ if PG then
   val.BackgroundTransparency=1
   val.Font=Enum.Font.Gotham
   val.TextSize=12
-  val.TextColor3=Color3.new(1,1,1)
-  val.Text=fmt and fmt(Settings[key])or Settings[key]
+  val.TextColor3=Color3.fromRGB(60,60,60)
+  val.Text=math.floor(Settings[key])
   val.Parent=f
   local dragging=false
   local function update(x)
    local p=math.clamp((x-track.AbsolutePosition.X)/track.AbsoluteSize.X,0,1)
    Settings[key]=min+(max-min)*p
    fill.Size=UDim2.new(p,0,1,0)
-   val.Text=fmt and fmt(Settings[key])or string.format("%.2f",Settings[key])
+   val.Text=math.floor(Settings[key])
    updateModule()
   end
   track.InputBegan:Connect(function(inp)
@@ -167,14 +160,13 @@ if PG then
  end
 
  toggle(main,"Enabled",1)
- slider(main,"FOV",20,300,2,function(v)return math.floor(v)end)
- slider(main,"Smoothness",0.01,1,3,function(v)return string.format("%.2f",v)end)
- toggle(main,"TargetLock",4)
+ slider(main,"FOV",20,300,2)
+ toggle(main,"TargetLock",3)
 
  updateModule()
 end
 
--- ===== AIMBOT / ESP (runs after GUI) =====
+-- ===== AIMBOT / ESP =====
 local env=getfenv()
 local hmm=env.hookmetamethod
 local gnm=env.getnamecallmethod
@@ -213,7 +205,7 @@ local function rpBot(m)
  return rp(m)
 end
 
-local targets,buildTick,aimPos={},0,Vector2.new()
+local targets,buildTick={},0
 LP.CharacterAdded:Connect(function()buildTick=999 end)
 
 local function rebuild()
@@ -264,7 +256,7 @@ local function getTarget()
  return best
 end
 
--- SILENT AIM 1: Mouse.Hit/Target
+-- SILENT AIM: Mouse.Hit/Target
 if hmm then
  pcall(function()
   local Mouse=LP:GetMouse()
@@ -282,7 +274,7 @@ if hmm then
  end)
 end
 
--- SILENT AIM 2: Raycast __namecall
+-- SILENT AIM: Raycast
 if hmm and gnm then
  pcall(function()
   local old
@@ -307,7 +299,7 @@ if hmm and gnm then
  end)
 end
 
--- MOUSEMOVEREL AIMBOT
+-- INSTANT MOUSEMOVEREL AIMBOT (no smooth)
 if mmr then
  local frame=0
  RS.RenderStepped:Connect(function()
@@ -341,17 +333,12 @@ if mmr then
    if best then
     local vp=cam:WorldToViewportPoint(best.Position)
     local tg=Vector2.new(vp.X,vp.Y)
-    local prev=aimPos
-    aimPos=prev+(tg-prev)*Settings.Smoothness
-    local dx=aimPos.X-prev.X
-    local dy=aimPos.Y-prev.Y
-    if frame%30==0 then
-     warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." fov="..Settings.FOV.." smooth="..Settings.Smoothness)
-    end
+    local center=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)
+    local dx=tg.X-center.X
+    local dy=tg.Y-center.Y
+    if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." FOV="..Settings.FOV)end
     mmr(dx,dy)
-   elseif frame%120==0 then
-    warn("MD: no target")
-   end
+   elseif frame%120==0 then warn("MD: no target")end
   end)
  end)
 end
@@ -380,9 +367,8 @@ if hasDraw then
       local h=math.abs(tp.Y-bp.Y);if h<20 then h=20 end
       local w=h*0.55;if w<15 then w=15 end
       local x=tp.X-w/2;local y=tp.Y-h
-      local cl=Color3.new(1,0,0)
-      o.box.Position=Vector2.new(x,y);o.box.Size=Vector2.new(w,h);o.box.Color=cl;o.box.Visible=true
-      o.name.Position=Vector2.new(x+w/2,y-14);o.name.Text=p.Name;o.name.Color=cl;o.name.Visible=true
+      o.box.Position=Vector2.new(x,y);o.box.Size=Vector2.new(w,h);o.box.Color=Color3.new(1,0,0);o.box.Visible=true
+      o.name.Position=Vector2.new(x+w/2,y-14);o.name.Text=p.Name;o.name.Color=Color3.new(1,0,0);o.name.Visible=true
      else o.box.Visible=false;o.name.Visible=false end
     else o.box.Visible=false;o.name.Visible=false end
    end
@@ -395,4 +381,4 @@ if hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL ALL-IN-ONE loaded — open GUI with Settings.Enabled=true")
+warn("MDUEL v9 loaded — instant lock + ESP + light GUI")
