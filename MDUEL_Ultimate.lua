@@ -1,4 +1,4 @@
--- MDUEL Ultimate v5 — all bugs fixed
+-- MDUEL Ultimate v6 — debug every step
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
@@ -11,7 +11,6 @@ local cfg={
  esp_color_team=Color3.new(0,1,0)
 }
 
--- get Executor APIs from env
 local env=getfenv()
 local hmm=env.hookmetamethod
 local gnm=env.getnamecallmethod
@@ -19,11 +18,9 @@ local mmr=env.mousemoverel
 
 warn("MD: hook="..tostring(hmm~=nil).." namecall="..tostring(gnm~=nil).." mmr="..tostring(mmr~=nil))
 
--- FIX E: proper Drawing type check
 local hasDraw=type(env.Drawing)=="table"and type(env.Drawing.new)=="function"
 warn("MD: Draw="..tostring(hasDraw))
 
--- Root part finder for custom Murderer Duel rigs
 local RP_TOP={"Head","UpperTorso","Torso","Root","HumanoidRootPart","Hip"}
 local RP_BOT={"HumanoidRootPart","LowerTorso","Torso","Root","Hip","UpperTorso","Head"}
 local function rp(m)
@@ -35,7 +32,6 @@ local function rp(m)
  for _,c in ipairs(m:GetChildren())do if c:IsA("BasePart")then return c end end
  return nil
 end
--- FIX A: separate top/bottom part finders for ESP box height
 local function rpTop(m)
  if not m then return nil end
  for _,n in ipairs(RP_TOP)do
@@ -53,7 +49,6 @@ local function rpBot(m)
  return rp(m)
 end
 
--- Target cache
 local targets,buildTick,aimPos={},0,Vector2.new()
 LP.CharacterAdded:Connect(function()buildTick=999 end)
 
@@ -66,36 +61,17 @@ local function rebuild()
    if r then t[m]=r end
   end
  end
- for _,c in ipairs(WS:GetChildren())do
-  if c:IsA("Model")then add(c)end
- end
+ for _,c in ipairs(WS:GetChildren())do if c:IsA("Model")then add(c)end end
  local ch=WS:FindFirstChild("Characters")
- if ch then
-  for _,c in ipairs(ch:GetChildren())do
-   if c:IsA("Model")then add(c)end
-  end
- end
- for _,p in ipairs(PS:GetPlayers())do
-  if p~=LP then
-   local c=p.Character
-   if c then add(c)end
-  end
- end
- for _,f in ipairs(WS:GetChildren())do
-  if f:IsA("Folder")and f.Name~="Characters"then
-   for _,c in ipairs(f:GetChildren())do
-    if c:IsA("Model")then add(c)end
-   end
-  end
- end
+ if ch then for _,c in ipairs(ch:GetChildren())do if c:IsA("Model")then add(c)end end end
+ for _,p in ipairs(PS:GetPlayers())do if p~=LP then local c=p.Character;if c then add(c)end end end
+ for _,f in ipairs(WS:GetChildren())do if f:IsA("Folder")and f.Name~="Characters"then for _,c in ipairs(f:GetChildren())do if c:IsA("Model")then add(c)end end end end
  targets=t;buildTick=0
- -- FIX B: count targets properly (not # on hash table)
  local n=0;for _ in pairs(targets)do n=n+1 end
- warn("MD: targets="..n)
+ warn("MD: targets="..n.." (self="..sn..")")
 end
 rebuild()
 
--- Universal target getter
 local function getTarget()
  local cam=WS.CurrentCamera
  if not cam then return nil end
@@ -118,6 +94,7 @@ local function getTarget()
    end
   end
  end
+ if best then warn("MD: target="..best:GetFullName().." dist="..math.floor(bd)) end
  return best
 end
 
@@ -141,7 +118,7 @@ if cfg.silent and hmm then
  end)
 end
 
--- SILENT AIM 2: Raycast __namecall (FIX C: include WS.Terrain)
+-- SILENT AIM 2: Raycast __namecall
 if cfg.silent and hmm and gnm then
  pcall(function()
   local old
@@ -154,9 +131,7 @@ if cfg.silent and hmm and gnm then
      local t=getTarget()
      if t then
       if m=="Raycast"then a[3]=(t.Position-a[2]).Unit*1000
-      elseif a[2].Origin then
-       local r=a[2];a[2]=Ray.new(r.Origin,(t.Position-r.Origin).Unit*1000)
-      end
+      elseif a[2].Origin then local r=a[2];a[2]=Ray.new(r.Origin,(t.Position-r.Origin).Unit*1000)end
       return old(unpack(a))
      end
     end
@@ -167,10 +142,12 @@ if cfg.silent and hmm and gnm then
  end)
 end
 
--- MOUSEMOVEREL AIMBOT
+-- MOUSEMOVEREL AIMBOT — debug every frame
 if mmr then
+ local frame=0
  RS.RenderStepped:Connect(function()
   pcall(function()
+   frame=frame+1
    local cam=WS.CurrentCamera
    if not cam then return end;local char=LP.Character
    if not char then return end;local hrp=rp(char)
@@ -199,13 +176,20 @@ if mmr then
     local tg=Vector2.new(vp.X,vp.Y)
     local prev=aimPos
     aimPos=prev+(tg-prev)*cfg.smooth
-    mmr(aimPos.X-prev.X,aimPos.Y-prev.Y)
+    local dx=aimPos.X-prev.X
+    local dy=aimPos.Y-prev.Y
+    -- DEBUG: log every 30 frames
+    if frame%30==0 then
+     warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." tg=("..math.floor(tg.X)..","..math.floor(tg.Y)..") pos=("..math.floor(aimPos.X)..","..math.floor(aimPos.Y)..")")
+    end
+    mmr(dx,dy)
+   elseif frame%120==0 then
+    warn("MD: no target in aimbot loop (targets="..#targets..")")
    end
   end)
  end)
 end
 
--- ESP (FIX A: use rpTop/rpBot for correct box height)
 if cfg.esp and hasDraw then
  local objs={}
  local function add(p)
@@ -219,8 +203,7 @@ if cfg.esp and hasDraw then
  local function update()
   for p,o in pairs(objs)do
    local c=p.Character
-   if not c or not c.Parent then
-    o.box.Visible=false;o.name.Visible=false
+   if not c or not c.Parent then o.box.Visible=false;o.name.Visible=false
    else
     local top=rpTop(c);local bot=rpBot(c)
     if top and bot then
@@ -241,16 +224,9 @@ if cfg.esp and hasDraw then
  end
  for _,p in ipairs(PS:GetPlayers())do add(p)end
  PS.PlayerAdded:Connect(add)
- PS.PlayerRemoving:Connect(function(p)
-  if objs[p]then objs[p].box:Remove();objs[p].name:Remove();objs[p]=nil end
- end)
- -- FIX F: BindToClose cleanup
- game:BindToClose(function()
-  for _,o in pairs(objs)do
-   pcall(function()o.box:Remove();o.name:Remove()end)
-  end
- end)
+ PS.PlayerRemoving:Connect(function(p)if objs[p]then objs[p].box:Remove();objs[p].name:Remove();objs[p]=nil end end)
+ game:BindToClose(function()for _,o in pairs(objs)do pcall(function()o.box:Remove();o.name:Remove()end)end end)
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL ULTIMATE v5 loaded")
+warn("MDUEL ULTIMATE v6 loaded — check console for debug")
