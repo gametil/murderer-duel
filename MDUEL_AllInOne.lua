@@ -1,11 +1,11 @@
--- MDUEL All-In-One v9 — Instant lock aim + ESP + Light theme GUI
+-- MDUEL All-In-One v10 — Instant lock + Range limit + Light GUI + ESP
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
 local PS=game:GetService("Players")
 local UIS=game:GetService("UserInputService")
 
-local Settings={Enabled=false,FOV=120,TargetLock=true}
+local Settings={Enabled=false,FOV=120,Range=150,TargetLock=true}
 
 -- ===== LIGHT THEME GUI =====
 local PG=LP:WaitForChild("PlayerGui",5)
@@ -18,13 +18,13 @@ if PG then
 
  local mod=Instance.new("ModuleScript")
  mod.Name="SettingsModule"
- mod.Source="return {Enabled=false,FOV=120,TargetLock=true}"
+ mod.Source="return {Enabled=false,FOV=120,Range=150,TargetLock=true}"
  mod.Parent=sg
 
  local main=Instance.new("Frame")
  main.Name="MainFrame"
- main.Size=UDim2.new(0,280,0,200)
- main.Position=UDim2.new(0.5,-140,0.5,-100)
+ main.Size=UDim2.new(0,280,0,240)
+ main.Position=UDim2.new(0.5,-140,0.5,-120)
  main.BackgroundColor3=Color3.fromRGB(245,245,245)
  main.BorderSizePixel=0
  main.Active=true
@@ -89,7 +89,7 @@ if PG then
  end
 
  local function updateModule()
-  mod.Source="return {Enabled="..tostring(Settings.Enabled)..",FOV="..Settings.FOV..",TargetLock="..tostring(Settings.TargetLock).."}"
+  mod.Source="return {Enabled="..tostring(Settings.Enabled)..",FOV="..Settings.FOV..",Range="..Settings.Range..",TargetLock="..tostring(Settings.TargetLock).."}"
  end
 
  local function toggle(parent, key, order)
@@ -161,7 +161,8 @@ if PG then
 
  toggle(main,"Enabled",1)
  slider(main,"FOV",20,300,2)
- toggle(main,"TargetLock",3)
+ slider(main,"Range",50,500,3)
+ toggle(main,"TargetLock",4)
 
  updateModule()
 end
@@ -241,7 +242,7 @@ local function getTarget()
   elseif m==char then targets[m]=nil
   else
    local d=(hp-r.Position).Magnitude
-   if d<=350 and d<bd then
+   if d<=Settings.Range and d<bd then
     local vp,on=cam:WorldToViewportPoint(r.Position)
     if on then
      local fovDist=(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude
@@ -319,7 +320,7 @@ if mmr then
     elseif m==char then targets[m]=nil
     else
      local d=(hp-r.Position).Magnitude
-     if d<=350 and d<bd then
+     if d<=Settings.Range and d<bd then
       local vp,on=cam:WorldToViewportPoint(r.Position)
       if on then
        local fovDist=(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude
@@ -336,9 +337,9 @@ if mmr then
     local center=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)
     local dx=tg.X-center.X
     local dy=tg.Y-center.Y
-    if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." FOV="..Settings.FOV)end
+    if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." FOV="..Settings.FOV.." Range="..Settings.Range)end
     mmr(dx,dy)
-   elseif frame%120==0 then warn("MD: no target")end
+   elseif frame%120==0 then warn("MD: no target in range")end
   end)
  end)
 end
@@ -381,4 +382,4 @@ if hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL v9 loaded — instant lock + ESP + light GUI")
+warn("MDUEL v10 loaded — instant lock + Range slider + ESP + light GUI")
