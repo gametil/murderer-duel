@@ -170,7 +170,7 @@ local function createGUI()
 
     toggle(main, "Enabled", 1)
     slider(main, "FOV", 20, 300, 2)
-    slider(main, "Range", 50, 5000, 3)
+    slider(main, "Range", 50, 10000, 3)
     slider(main, "Smoothness", 0.01, 1, 4)
     toggle(main, "TargetLock", 5)
     updateModule()
