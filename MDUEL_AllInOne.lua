@@ -1,4 +1,4 @@
--- MDUEL All-In-One v10 — Instant lock + Range limit + Light GUI + ESP
+-- MDUEL All-In-One v11 — Fixed instant lock (tracked aimPos) + Range + ESP + Light GUI
 local RS=game:GetService("RunService")
 local LP=game:GetService("Players").LocalPlayer
 local WS=game:GetService("Workspace")
@@ -56,8 +56,7 @@ if PG then
  close.TextColor3=Color3.fromRGB(30,30,30)
  close.Parent=main
  Instance.new("UICorner",close).CornerRadius=UDim.new(0,6)
-
- close.MouseButton1Click:Connect(function() main.Visible=false end)
+ close.MouseButton1Click:Connect(function()main.Visible=false end)
 
  local layout=Instance.new("UIListLayout",main)
  layout.Padding=UDim.new(0,8)
@@ -67,25 +66,15 @@ if PG then
 
  local function row(name, order)
   local f=Instance.new("Frame")
-  f.Name=name
-  f.Size=UDim2.new(1,-24,0,40)
-  f.BackgroundTransparency=1
-  f.LayoutOrder=order
-  f.Parent=main
+  f.Name=name;f.Size=UDim2.new(1,-24,0,40);f.BackgroundTransparency=1;f.LayoutOrder=order;f.Parent=main
   return f
  end
 
  local function label(parent, text)
   local l=Instance.new("TextLabel")
-  l.Size=UDim2.new(0,90,1,0)
-  l.BackgroundTransparency=1
-  l.Text=text
-  l.Font=Enum.Font.Gotham
-  l.TextSize=13
-  l.TextColor3=Color3.fromRGB(60,60,60)
-  l.TextXAlignment=Enum.TextXAlignment.Left
-  l.Parent=parent
-  return l
+  l.Size=UDim2.new(0,90,1,0);l.BackgroundTransparency=1;l.Text=text
+  l.Font=Enum.Font.Gotham;l.TextSize=13;l.TextColor3=Color3.fromRGB(60,60,60);l.TextXAlignment=Enum.TextXAlignment.Left
+  l.Parent=parent;return l
  end
 
  local function updateModule()
@@ -93,69 +82,40 @@ if PG then
  end
 
  local function toggle(parent, key, order)
-  local f=row(key,order)
-  label(f,key)
+  local f=row(key,order);label(f,key)
   local btn=Instance.new("TextButton")
-  btn.Name="TextButton"
-  btn.Size=UDim2.new(0,54,0,26)
-  btn.Position=UDim2.new(1,-54,0.5,-13)
-  btn.BackgroundColor3=Settings[key] and Color3.fromRGB(0,150,100) or Color3.fromRGB(220,220,220)
-  btn.Text=Settings[key] and"ON"or"OFF"
-  btn.Font=Enum.Font.GothamBold
-  btn.TextSize=12
-  btn.TextColor3=Color3.fromRGB(255,255,255)
-  btn.Parent=f
-  Instance.new("UICorner",btn).CornerRadius=UDim.new(0,4)
+  btn.Name="TextButton";btn.Size=UDim2.new(0,54,0,26);btn.Position=UDim2.new(1,-54,0.5,-13)
+  btn.BackgroundColor3=Settings[key]and Color3.fromRGB(0,150,100)or Color3.fromRGB(220,220,220)
+  btn.Text=Settings[key]and"ON"or"OFF";btn.Font=Enum.Font.GothamBold;btn.TextSize=12;btn.TextColor3=Color3.new(1,1,1)
+  btn.Parent=f;Instance.new("UICorner",btn).CornerRadius=UDim.new(0,4)
   btn.MouseButton1Click:Connect(function()
    Settings[key]=not Settings[key]
-   btn.BackgroundColor3=Settings[key] and Color3.fromRGB(0,150,100) or Color3.fromRGB(220,220,220)
-   btn.Text=Settings[key] and"ON"or"OFF"
-   updateModule()
+   btn.BackgroundColor3=Settings[key]and Color3.fromRGB(0,150,100)or Color3.fromRGB(220,220,220)
+   btn.Text=Settings[key]and"ON"or"OFF";updateModule()
   end)
  end
 
  local function slider(parent, key, min, max, order)
-  local f=row(key,order)
-  label(f,key)
+  local f=row(key,order);label(f,key)
   local track=Instance.new("Frame")
-  track.Name="Track"
-  track.Size=UDim2.new(0,160,0,6)
-  track.Position=UDim2.new(0,100,0.5,-3)
-  track.BackgroundColor3=Color3.fromRGB(220,220,220)
-  track.Parent=f
+  track.Name="Track";track.Size=UDim2.new(0,160,0,6);track.Position=UDim2.new(0,100,0.5,-3)
+  track.BackgroundColor3=Color3.fromRGB(220,220,220);track.Parent=f
   Instance.new("UICorner",track).CornerRadius=UDim.new(0,3)
-  local fill=Instance.new("Frame")
-  fill.Name="Fill"
-  fill.BackgroundColor3=Color3.fromRGB(0,150,100)
-  Instance.new("UICorner",fill).CornerRadius=UDim.new(0,3)
-  fill.Parent=track
+  local fill=Instance.new("Frame");fill.Name="Fill";fill.BackgroundColor3=Color3.fromRGB(0,150,100)
+  Instance.new("UICorner",fill).CornerRadius=UDim.new(0,3);fill.Parent=track
   local val=Instance.new("TextLabel")
-  val.Name="TextLabel"
-  val.Size=UDim2.new(0,50,1,0)
-  val.Position=UDim2.new(1,-50,0,0)
-  val.BackgroundTransparency=1
-  val.Font=Enum.Font.Gotham
-  val.TextSize=12
-  val.TextColor3=Color3.fromRGB(60,60,60)
-  val.Text=math.floor(Settings[key])
-  val.Parent=f
+  val.Name="TextLabel";val.Size=UDim2.new(0,50,1,0);val.Position=UDim2.new(1,-50,0,0)
+  val.BackgroundTransparency=1;val.Font=Enum.Font.Gotham;val.TextSize=12;val.TextColor3=Color3.fromRGB(60,60,60)
+  val.Text=math.floor(Settings[key]);val.Parent=f
   local dragging=false
   local function update(x)
    local p=math.clamp((x-track.AbsolutePosition.X)/track.AbsoluteSize.X,0,1)
    Settings[key]=min+(max-min)*p
-   fill.Size=UDim2.new(p,0,1,0)
-   val.Text=math.floor(Settings[key])
-   updateModule()
+   fill.Size=UDim2.new(p,0,1,0);val.Text=math.floor(Settings[key]);updateModule()
   end
-  track.InputBegan:Connect(function(inp)
-   if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true;update(inp.Position.X)end
-  end)
-  track.InputEnded:Connect(function(inp)
-   if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
-  end)
-  UIS.InputChanged:Connect(function(inp)
-   if dragging and inp.UserInputType==Enum.UserInputType.MouseMovement then update(inp.Position.X)end
-  end)
+  track.InputBegan:Connect(function(inp)if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true;update(inp.Position.X)end end)
+  track.InputEnded:Connect(function(inp)if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
+  UIS.InputChanged:Connect(function(inp)if dragging and inp.UserInputType==Enum.UserInputType.MouseMovement then update(inp.Position.X)end end)
   fill.Size=UDim2.new((Settings[key]-min)/(max-min),0,1,0)
  end
 
@@ -163,7 +123,6 @@ if PG then
  slider(main,"FOV",20,300,2)
  slider(main,"Range",50,500,3)
  toggle(main,"TargetLock",4)
-
  updateModule()
 end
 
@@ -182,41 +141,29 @@ local RP_TOP={"Head","UpperTorso","Torso","Root","HumanoidRootPart","Hip"}
 local RP_BOT={"HumanoidRootPart","LowerTorso","Torso","Root","Hip","UpperTorso","Head"}
 local function rp(m)
  if not m then return nil end
- for _,n in ipairs(RP_TOP)do
-  local p=m:FindFirstChild(n)
-  if p and p:IsA("BasePart")then return p end
- end
+ for _,n in ipairs(RP_TOP)do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
  for _,c in ipairs(m:GetChildren())do if c:IsA("BasePart")then return c end end
  return nil
 end
 local function rpTop(m)
  if not m then return nil end
- for _,n in ipairs(RP_TOP)do
-  local p=m:FindFirstChild(n)
-  if p and p:IsA("BasePart")then return p end
- end
+ for _,n in ipairs(RP_TOP)do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
  return rp(m)
 end
 local function rpBot(m)
  if not m then return nil end
- for _,n in ipairs(RP_BOT)do
-  local p=m:FindFirstChild(n)
-  if p and p:IsA("BasePart")then return p end
- end
+ for _,n in ipairs(RP_BOT)do local p=m:FindFirstChild(n);if p and p:IsA("BasePart")then return p end end
  return rp(m)
 end
 
-local targets,buildTick={},0
+local targets,buildTick,aimPos={},0,Vector2.new()
 LP.CharacterAdded:Connect(function()buildTick=999 end)
 
 local function rebuild()
  local t={}
  local sc=LP.Character;local sn=LP.Name
  local function add(m)
-  if m and m~=sc and m.Name~=sn and not t[m]then
-   local r=rp(m)
-   if r then t[m]=r end
-  end
+  if m and m~=sc and m.Name~=sn and not t[m]then local r=rp(m);if r then t[m]=r end end
  end
  for _,c in ipairs(WS:GetChildren())do if c:IsA("Model")then add(c)end end
  local ch=WS:FindFirstChild("Characters")
@@ -231,8 +178,7 @@ rebuild()
 
 local function getTarget()
  if not Settings.Enabled then return nil end
- local cam=WS.CurrentCamera
- if not cam then return nil end
+ local cam=WS.CurrentCamera;if not cam then return nil end
  local char=LP.Character;if not char then return nil end
  local hrp=rp(char);if not hrp then return nil end
  local hp=hrp.Position
@@ -246,9 +192,7 @@ local function getTarget()
     local vp,on=cam:WorldToViewportPoint(r.Position)
     if on then
      local fovDist=(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude
-     if Settings.FOV==0 or fovDist<=Settings.FOV then
-      best=r;bd=d
-     end
+     if Settings.FOV==0 or fovDist<=Settings.FOV then best=r;bd=d end
     end
    end
   end
@@ -258,59 +202,52 @@ local function getTarget()
 end
 
 -- SILENT AIM: Mouse.Hit/Target
-if hmm then
- pcall(function()
-  local Mouse=LP:GetMouse()
-  if Mouse then
-   local oldIdx
-   oldIdx=hmm(game,"__index",function(s,i)
-    if Settings.Enabled and s==Mouse and(i=="Hit"or i=="Target")then
-     local t=getTarget()
-     if t then return i=="Hit"and t.CFrame or t end
-    end
-    return oldIdx(s,i)
-   end)
-   warn("MD: Mouse.Hit hook ok")
-  else warn("MD: GetMouse nil")end
- end)
-end
+if hmm then pcall(function()
+ local Mouse=LP:GetMouse()
+ if Mouse then
+  local oldIdx
+  oldIdx=hmm(game,"__index",function(s,i)
+   if Settings.Enabled and s==Mouse and(i=="Hit"or i=="Target")then
+    local t=getTarget();if t then return i=="Hit"and t.CFrame or t end
+   end
+   return oldIdx(s,i)
+  end)
+  warn("MD: Mouse.Hit hook ok")
+ else warn("MD: GetMouse nil")end
+end)end
 
 -- SILENT AIM: Raycast
-if hmm and gnm then
- pcall(function()
-  local old
-  old=hmm(game,"__namecall",function(...)
-   if not Settings.Enabled then return old(...)end
-   local m=gnm()
-   if m=="Raycast"or m=="FindPartOnRayWithIgnoreList"or m=="FindPartOnRayWithWhitelist"or m=="FindPartOnRay"then
-    local a={...}
-    local s=a[1]
-    if(s==WS or s==WS.Terrain)and a[2]then
-     local t=getTarget()
-     if t then
-      if m=="Raycast"then a[3]=(t.Position-a[2]).Unit*1000
-      elseif a[2].Origin then local r=a[2];a[2]=Ray.new(r.Origin,(t.Position-r.Origin).Unit*1000)end
-      return old(unpack(a))
-     end
+if hmm and gnm then pcall(function()
+ local old
+ old=hmm(game,"__namecall",function(...)
+  if not Settings.Enabled then return old(...)end
+  local m=gnm()
+  if m=="Raycast"or m=="FindPartOnRayWithIgnoreList"or m=="FindPartOnRayWithWhitelist"or m=="FindPartOnRay"then
+   local a={...};local s=a[1]
+   if(s==WS or s==WS.Terrain)and a[2]then
+    local t=getTarget()
+    if t then
+     if m=="Raycast"then a[3]=(t.Position-a[2]).Unit*1000
+     elseif a[2].Origin then local r=a[2];a[2]=Ray.new(r.Origin,(t.Position-r.Origin).Unit*1000)end
+     return old(unpack(a))
     end
    end
-   return old(...)
-  end)
-  warn("MD: Raycast hook ok")
+  end
+  return old(...)
  end)
-end
+ warn("MD: Raycast hook ok")
+end)end
 
--- INSTANT MOUSEMOVEREL AIMBOT (no smooth)
+-- INSTANT AIMBOT WITH TRACKED aimPos (no overshoot)
 if mmr then
  local frame=0
  RS.RenderStepped:Connect(function()
   pcall(function()
    frame=frame+1
    if not Settings.Enabled then return end
-   local cam=WS.CurrentCamera
-   if not cam then return end;local char=LP.Character
-   if not char then return end;local hrp=rp(char)
-   if not hrp then return end
+   local cam=WS.CurrentCamera;if not cam then return end
+   local char=LP.Character;if not char then return end
+   local hrp=rp(char);if not hrp then return end
    buildTick=buildTick+1
    if buildTick>=60 or not next(targets)then rebuild()end
    local hp=hrp.Position
@@ -324,9 +261,7 @@ if mmr then
       local vp,on=cam:WorldToViewportPoint(r.Position)
       if on then
        local fovDist=(Vector2.new(vp.X-cam.ViewportSize.X/2,vp.Y-cam.ViewportSize.Y/2)).Magnitude
-       if Settings.FOV==0 or fovDist<=Settings.FOV then
-        best=r;bd=d
-       end
+       if Settings.FOV==0 or fovDist<=Settings.FOV then best=r;bd=d end
       end
      end
     end
@@ -334,9 +269,9 @@ if mmr then
    if best then
     local vp=cam:WorldToViewportPoint(best.Position)
     local tg=Vector2.new(vp.X,vp.Y)
-    local center=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)
-    local dx=tg.X-center.X
-    local dy=tg.Y-center.Y
+    local dx=tg.X-aimPos.X
+    local dy=tg.Y-aimPos.Y
+    aimPos=tg
     if frame%30==0 then warn("MD: aim dx="..math.floor(dx).." dy="..math.floor(dy).." FOV="..Settings.FOV.." Range="..Settings.Range)end
     mmr(dx,dy)
    elseif frame%120==0 then warn("MD: no target in range")end
@@ -349,8 +284,7 @@ if hasDraw then
  local objs={}
  local function add(p)
   if p==LP or objs[p]then return end
-  local b=Drawing.new("Square")
-  local n=Drawing.new("Text")
+  local b=Drawing.new("Square");local n=Drawing.new("Text")
   b.Thickness=2;b.Filled=false;b.Visible=false
   n.Size=14;n.Outline=true;n.Center=true;n.Visible=false
   objs[p]={box=b,name=n}
@@ -382,4 +316,4 @@ if hasDraw then
  RS.RenderStepped:Connect(update)
 end
 
-warn("MDUEL v10 loaded — instant lock + Range slider + ESP + light GUI")
+warn("MDUEL v11 loaded — fixed instant lock (tracked aimPos) + Range + ESP + light GUI")
